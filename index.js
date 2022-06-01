@@ -1,5 +1,5 @@
 const instance_skel = require('../../instance_skel')
-const LGTV = require('lgtv-ip-control')
+const { LGTV } = require('lgtv-ip-control')
 
 class instance extends instance_skel {
 	/**
