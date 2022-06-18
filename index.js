@@ -25,7 +25,7 @@ class instance extends instance_skel {
 		this.init_presets()
 
 		if (this.lgtv !== undefined) {
-			this.lgtv.destroy()
+			this.lgtv.disconnect()
 			delete this.lgtv
 		}
 
@@ -58,7 +58,7 @@ class instance extends instance_skel {
 
 	init_connection() {
 		if (this.lgtv !== undefined) {
-			this.lgtv.destroy()
+			this.lgtv.disconnect()
 			delete this.lgtv
 		}
 
@@ -69,10 +69,14 @@ class instance extends instance_skel {
 			this.lgtv
 				.connect()
 				.then(async () => {
-					console.log('connected')
+					this.log('info', 'Connected to ' + this.config.host)
 					this.status(this.STATUS_OK)
 				})
-				.catch(console.error)
+				.catch(error => {
+					this.log('error', 'Connection error')
+					this.debug(error)
+					this.status(this.STATUS_ERROR)
+				})
 		}
 	}
 
@@ -130,7 +134,6 @@ class instance extends instance_skel {
 	// When module gets deleted
 	destroy() {
 		this.lgtv.disconnect()
-		this.lgtv.destroy()
 
 		this.debug('destroy', this.id)
 	}
