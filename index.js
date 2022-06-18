@@ -1,5 +1,5 @@
 const instance_skel = require('../../instance_skel')
-const { LGTV } = require('lgtv-ip-control')
+const { LGTV, Inputs, EnergySavingLevels, Keys } = require('lgtv-ip-control')
 
 class instance extends instance_skel {
 	/**
@@ -12,6 +12,11 @@ class instance extends instance_skel {
 	 */
 	constructor(system, id, config) {
 		super(system, id, config)
+
+		// initialize enums to read from module
+		this.available_keys = []
+		this.available_energyLevels = []
+
 		this.actions() // export actions
 		this.init_presets() // export presets
 	}
@@ -32,6 +37,23 @@ class instance extends instance_skel {
 	init() {
 		this.init_presets()
 		this.init_connection()
+		this.init_lgtv()
+	}
+
+	init_lgtv() {
+		// read all available keys from module
+		this.available_keys = []
+		Object.keys(Keys).forEach(key => {
+			this.available_keys.push( {id: key, label: key} )
+		})
+		
+		// read all available energy saving levels from module
+		this.available_energyLevels = []
+		Object.keys(EnergySavingLevels).forEach(key => {
+			this.available_energyLevels.push( {id: key, label: key} )
+		})
+		
+		this.actions() // rebuild action options
 	}
 
 	init_connection() {
@@ -128,6 +150,7 @@ class instance extends instance_skel {
 			actions: [{ action: 'powerOn', options: [] }],
 			feedbacks: [],
 		})
+
 		presets.push({
 			category: 'Basics',
 			label: 'Power off',
@@ -141,6 +164,64 @@ class instance extends instance_skel {
 			actions: [{ action: 'powerOff', options: [] }],
 			feedbacks: [],
 		})
+
+		presets.push({
+			category: 'Basics',
+			label: 'Mute',
+			bank: {
+				style: 'text',
+				text: `Volume Mute`,
+				size: '14',
+				color: this.rgb(255, 255, 255),
+				bgcolor: this.rgb(0, 0, 0),
+				latch: true,
+			},
+			actions: [{ action: 'setVolumeMute', options: { "mute": true }}],
+			release_actions: [{ action: 'setVolumeMute', options: { "mute": false }}],
+			feedbacks: [],
+		})
+
+		presets.push({
+			category: 'Basics',
+			label: 'HDMI 1',
+			bank: {
+				style: 'text',
+				text: `HDMI 1`,
+				size: '14',
+				color: this.rgb(255, 255, 255),
+				bgcolor: this.rgb(0, 0, 0),
+			},
+			actions: [{ action: 'setInput', options: {'input': Inputs.hdmi1} }],
+		})
+
+		presets.push({
+			category: 'Basics',
+			label: 'HDMI 2',
+			bank: {
+				style: 'text',
+				text: `HDMI 2`,
+				size: '14',
+				color: this.rgb(255, 255, 255),
+				bgcolor: this.rgb(0, 0, 0),
+			},
+			actions: [{ action: 'setInput', options: {'input': Inputs.hdmi2} }],
+		})
+
+		presets.push({
+			category: 'Basics',
+			label: 'Blank Screen',
+			bank: {
+				style: 'text',
+				text: `Blank Screen`,
+				size: '14',
+				color: this.rgb(255, 255, 255),
+				bgcolor: this.rgb(0, 0, 0),
+				latch: true,
+			},
+			actions: [{ action: 'setEnergySaving', options: { 'level': 'screenOff'} }],
+			release_actions: [{ action: 'setEnergySaving', options: { 'level': 'off' }}],
+		})
+
 		this.setPresetDefinitions(presets)
 	}
 
@@ -154,6 +235,79 @@ class instance extends instance_skel {
 				label: 'Power Off Display',
 				options: [],
 			},
+			setInput: {
+				label: 'Set Input',
+				options: [
+					{
+						type: 'dropdown',
+						id: 'input',
+						label: 'Input:',
+						width: 3,
+						required: true,
+						choices: [
+							{ id: 'dtv'      , label: 'Digital TV' },
+							{ id: 'atv'      , label: 'Analog TV' },
+							{ id: 'cadtv'    , label: 'Cable Digital TV' },
+							{ id: 'catv'     , label: 'Cable TV' },
+							{ id: 'av'       , label: 'AV Composite' },
+							{ id: 'component', label: 'Component' },
+							{ id: 'hdmi1'    , label: 'HDMI 1' },
+							{ id: 'hdmi2'    , label: 'HDMI 2' },
+							{ id: 'hdmi3'    , label: 'HDMI 3' },
+							{ id: 'hdmi4'    , label: 'HDMI 4' }
+						  ]
+					},
+				],
+			},
+			sendKey: {
+				label: 'Send Key',
+				options: [
+					{
+						type: 'dropdown',
+						id: 'key',
+						label: 'Key:',
+						width: 3,
+						required: true,
+						choices: this.available_keys
+					},
+				],
+			},
+			setVolume: {
+				label: 'Set Volume',
+				options: [
+					{
+						type: 'number',
+						id: 'vol',
+						label: 'Volume Level (0-100):',
+						width: 3,
+						required: true
+					},
+				],
+			},
+			setVolumeMute: {
+				label: 'Volume Mute',
+				options: [
+					{
+						type: 'checkbox',
+						label: 'Mute:',
+						id: 'mute',
+						default: true
+					},
+				],
+			},
+			setEnergySaving: {
+				label: 'Set Energy Saving',
+				options: [
+					{
+						type: 'dropdown',
+						id: 'level',
+						label: 'Level:',
+						width: 3,
+						required: true,
+						choices: this.available_energyLevels
+					},
+				],
+			},
 		})
 	}
 
@@ -165,6 +319,21 @@ class instance extends instance_skel {
 					break
 				case 'powerOff':
 					await this.lgtv.powerOff()
+					break
+				case 'setInput':
+					await this.lgtv.setInput(eval('Inputs.' + action.options.input))
+					break
+				case 'sendKey':
+					await this.lgtv.sendKey(eval('Keys.' + action.options.key))
+					break
+				case 'setVolume':
+					await this.lgtv.setVolume(action.options.vol)
+					break
+				case 'setVolumeMute':
+					await this.lgtv.setVolumeMute(action.options.mute)
+					break
+				case 'setEnergySaving':
+					await this.lgtv.setEnergySaving(eval('EnergySavingLevels.' + action.options.level))
 					break
 			}
 		}
