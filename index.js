@@ -1,5 +1,5 @@
 const instance_skel = require('../../instance_skel')
-const { LGTV, Inputs, EnergySavingLevels, Keys } = require('lgtv-ip-control')
+const { LGTV, Inputs, EnergySavingLevels, Keys, DefaultSettings } = require('lgtv-ip-control')
 
 class instance extends instance_skel {
 	/**
@@ -64,8 +64,11 @@ class instance extends instance_skel {
 
 		this.status(this.STATE_WARNING, 'Connecting')
 
+		// use custom WOL IP if defined
+		DefaultSettings.networkWolAddress = this.config.wol_ip ? this.config.wol_ip : '255.255.255.255'
+		
 		if (this.config.host && this.config.mac && this.config.code) {
-			this.lgtv = new LGTV(this.config.host, this.config.mac, this.config.code)
+			this.lgtv = new LGTV(this.config.host, this.config.mac, this.config.code, DefaultSettings)
 			this.lgtv
 				.connect()
 				.then(async () => {
@@ -102,6 +105,7 @@ class instance extends instance_skel {
 							<li>Turn "Network IP Control" on</li>
 							<li>Click "Generate Keycode", and take note of the 8 characters code displayed on the message for reference and library configuration. You can generate a new code at any time</li>
 							<li>If you want to be able to turn the TV on, turn "Wake On LAN" on</li>
+							<li>Leave WOL IP at default unless you know what you're doing.</li>
 						</ol>
 					</div>
 				</div>
@@ -127,6 +131,14 @@ class instance extends instance_skel {
 				label: 'Keycode',
 				width: 6,
 				regex: this.REGEX_SOMETHING,
+			},
+			{
+				type: 'textinput',
+				id: 'wol_ip',
+				label: 'Wake-On-LAN IP',
+				width: 6,
+				default: '255.255.255.255',
+				regex: this.REGEX_IP,
 			},
 		]
 	}
@@ -319,6 +331,7 @@ class instance extends instance_skel {
 			switch (action.action) {
 				case 'powerOn':
 					this.lgtv.powerOn()
+					this.log('info', 'Sending WOL magic packet to ' + DefaultSettings.networkWolAddress)
 					break
 				case 'powerOff':
 					await this.lgtv.powerOff()

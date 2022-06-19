@@ -8,7 +8,7 @@
 * Note the MAC IP addresses for reference and library configuration
 * Turn "Network IP Control" on
 * Click "Generate Keycode", and take note of the 8 characters code displayed on the message for reference and library configuration. You can generate a new code at any time.  Letters must be capitalized.
-* If you want to be able to turn the TV on, turn "Wake On LAN" on.  This may not work across subnets.
+* If you want to be able to turn the TV on, turn "Wake On LAN" on.  By default, the WOL magic packet is sent to 255.255.255.255 but you can change this if you have a complex network setup using static ARP across subnets.
 
 **Available commands in this module**
 
