@@ -62,13 +62,15 @@ class instance extends instance_skel {
 			delete this.lgtv
 		}
 
-		this.status(this.STATE_WARNING, 'Connecting')
+		this.status(this.STATUS_WARNING, 'Connecting')
+
+		this.DefaultSettings = Object.assign({}, DefaultSettings);
 
 		// use custom WOL IP if defined
-		DefaultSettings.networkWolAddress = this.config.wol_ip ? this.config.wol_ip : '255.255.255.255'
+		this.DefaultSettings.networkWolAddress = this.config.wol_ip ? this.config.wol_ip : '255.255.255.255'
 		
 		if (this.config.host && this.config.mac && this.config.code) {
-			this.lgtv = new LGTV(this.config.host, this.config.mac, this.config.code, DefaultSettings)
+			this.lgtv = new LGTV(this.config.host, this.config.mac, this.config.code, this.DefaultSettings)
 			this.lgtv
 				.connect()
 				.then(async () => {
@@ -76,9 +78,9 @@ class instance extends instance_skel {
 					this.status(this.STATUS_OK)
 				})
 				.catch(error => {
-					this.log('error', 'Connection error')
+					this.log('error', 'Could not connect to TV.')
 					this.debug(error)
-					this.status(this.STATUS_ERROR)
+					this.status(this.STATUS_WARNING, 'Connecting')
 				})
 		}
 	}
@@ -331,7 +333,7 @@ class instance extends instance_skel {
 			switch (action.action) {
 				case 'powerOn':
 					this.lgtv.powerOn()
-					this.log('info', 'Sending WOL magic packet to ' + DefaultSettings.networkWolAddress)
+					this.log('info', 'Sending WOL magic packet to ' + this.DefaultSettings.networkWolAddress)
 					break
 				case 'powerOff':
 					await this.lgtv.powerOff()
