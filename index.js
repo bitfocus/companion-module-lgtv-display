@@ -24,11 +24,6 @@ class instance extends instance_skel {
 	updateConfig(config) {
 		this.init_presets()
 
-		if (this.lgtv !== undefined) {
-			this.lgtv.disconnect()
-			delete this.lgtv
-		}
-
 		this.config = config
 
 		this.init_connection()
@@ -58,7 +53,6 @@ class instance extends instance_skel {
 
 	init_connection() {
 		if (this.lgtv !== undefined) {
-			this.lgtv.disconnect()
 			delete this.lgtv
 		}
 
@@ -145,10 +139,9 @@ class instance extends instance_skel {
 		]
 	}
 
-	// When module gets deleted
+	// When module gets deleted or disabled
 	destroy() {
-		this.lgtv.disconnect()
-
+		// removed disconnect() because it caused UnhandledPromiseRejection
 		this.debug('destroy', this.id)
 	}
 
