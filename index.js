@@ -1,353 +1,102 @@
-const instance_skel = require('../../instance_skel')
-const { LGTV, Inputs, EnergySavingLevels, Keys, DefaultSettings } = require('lgtv-ip-control')
+const { InstanceBase, InstanceStatus, runEntrypoint } = require('@companion-module/base');
+const UpgradeScripts = require('./src/upgrades');
+const { LGTV, EnergySavingLevels, Keys, DefaultSettings } = require('lgtv-ip-control');
 
-class instance extends instance_skel {
-	/**
-	 * Create an instance of the module
-	 *
-	 * @param {EventEmitter} system - the brains of the operation
-	 * @param {string} id - the instance ID
-	 * @param {Object} config - saved user configuration parameters
-	 * @since 1.0.0
-	 */
-	constructor(system, id, config) {
-		super(system, id, config)
+const config = require('./src/config');
+const actions = require('./src/actions');
+const feedbacks = require('./src/feedbacks');
+const variables = require('./src/variables');
+const presets = require('./src/presets');
 
-		// initialize enums to read from module
-		this.available_keys = []
-		this.available_energyLevels = []
+const utils = require('./src/utils');
 
-		this.actions() // export actions
-		this.init_presets() // export presets
+class LGTVInstance extends InstanceBase {
+	constructor(internal) {
+		super(internal);
+		// Assign the methods from the listed files to this class
+		Object.assign(this, {
+			...config,
+			...actions,
+			...feedbacks,
+			...variables,
+			...presets,
+			...utils,
+		});
+		this.avaliable_keys = [];
+		this.avaliable_energyLevels = [];
 	}
 
-	updateConfig(config) {
-		this.init_presets()
-
-		this.config = config
-
-		this.init_connection()
+	async init(config) {
+		this.configUpdated(config);
 	}
 
-	init() {
-		this.init_presets()
-		this.init_connection()
-		this.init_lgtv()
+	async configUpdated(config) {
+		this.config = config;
+
+		this.initActions();
+		this.initFeedbacks();
+		this.initVariables();
+		this.initPresets();
+
+		this.updateStatus(InstanceStatus.Connecting);
+		this.initLGTV();
+		this.initConnection();
+
+		if (this.config.precision) {
+			this.precision = parseInt(this.config.precision);
+		}
 	}
 
-	init_lgtv() {
-		// read all available keys from module
-		this.available_keys = []
-		Object.keys(Keys).forEach(key => {
-			this.available_keys.push( {id: key, label: key} )
-		})
-		
-		// read all available energy saving levels from module
-		this.available_energyLevels = []
-		Object.keys(EnergySavingLevels).forEach(key => {
-			this.available_energyLevels.push( {id: key, label: key} )
-		})
-		
-		this.actions() // rebuild action options
+	initLGTV() {
+		this.available_keys = Object.keys(Keys).map(key => ({ id: key, label: key }));
+		this.available_energyLevels = Object.keys(EnergySavingLevels).map(key => ({ id: key, label: key }));
+		this.initActions();
 	}
 
-	init_connection() {
+	initConnection() {
 		if (this.lgtv !== undefined) {
-			delete this.lgtv
+			this.lgtv.disconnect()
+			delete this.lgtv;
 		}
-
-		this.status(this.STATUS_WARNING, 'Connecting')
-
+		this.updateStatus(InstanceStatus.Connecting);
 		this.DefaultSettings = Object.assign({}, DefaultSettings);
+		if (this.config.wol_ip && this.REGEX_IP.test(this.config.wol_ip)) {
+			this.DefaultSettings.networkWolAddress = this.config.wol_ip;
+		} else {
+			this.DefaultSettings.networkWolAddress = '255.255.255.255'; // Default value if invalid
+		}
 
-		// use custom WOL IP if defined
-		this.DefaultSettings.networkWolAddress = this.config.wol_ip ? this.config.wol_ip : '255.255.255.255'
-		
 		if (this.config.host && this.config.mac && this.config.code) {
-			this.lgtv = new LGTV(this.config.host, this.config.mac, this.config.code, this.DefaultSettings)
-			this.lgtv
-				.connect()
-				.then(async () => {
-					this.log('info', 'Connected to ' + this.config.host)
-					this.status(this.STATUS_OK)
-				})
-				.catch(error => {
-					this.log('error', 'Could not connect to TV.')
-					this.debug(error)
-					this.status(this.STATUS_WARNING, 'Connecting')
-				})
-		}
-	}
-
-	// Return config fields for web config
-	config_fields() {
-		return [
-			{
-				type: 'text',
-				id: 'info',
-				label: 'Information',
-				width: 12,
-				value: `
-				<div class="alert alert-danger">
-					<h3>IMPORTANT MESSAGE</h3>
-					<div>
-						<strong>Before anything, you need to enable Network IP Control, which is very easy:</strong>
-						<br>
-						<ol>
-							<li>Open the "All Settings" menu on the TV</li>
-							<li>Using the remote arrows, navigate to "Connection". For some TVs, this may say "Network" instead.</li>
-							<li>Quickly, press 82888 using the remote numeric buttons</li>
-							<li>Note the MAC IP addresses for reference and library configuration</li>
-							<li>Turn "Network IP Control" on</li>
-							<li>Click "Generate Keycode", and take note of the 8 characters code displayed on the message for reference and library configuration. You can generate a new code at any time</li>
-							<li>If you want to be able to turn the TV on, turn "Wake On LAN" on</li>
-							<li>Leave WOL IP at default unless you know what you're doing.</li>
-						</ol>
-					</div>
-				</div>
-			`,
-			},
-			{
-				type: 'textinput',
-				id: 'host',
-				label: 'Target IP',
-				width: 6,
-				regex: this.REGEX_IP,
-			},
-			{
-				type: 'textinput',
-				id: 'mac',
-				label: 'MAC ADDRESS',
-				width: 6,
-				regex: this.REGEX_SOMETHING,
-			},
-			{
-				type: 'textinput',
-				id: 'code',
-				label: 'Keycode',
-				width: 6,
-				regex: this.REGEX_SOMETHING,
-			},
-			{
-				type: 'textinput',
-				id: 'wol_ip',
-				label: 'Wake-On-LAN IP',
-				width: 6,
-				default: '255.255.255.255',
-				regex: this.REGEX_IP,
-			},
-		]
-	}
-
-	// When module gets deleted or disabled
-	destroy() {
-		// removed disconnect() because it caused UnhandledPromiseRejection
-		this.debug('destroy', this.id)
-	}
-
-	init_presets() {
-		let presets = []
-		presets.push({
-			category: 'Basics',
-			label: 'Power on',
-			bank: {
-				style: 'text',
-				text: `Power On`,
-				size: '14',
-				color: this.rgb(255, 255, 255),
-				bgcolor: this.rgb(0, 0, 0),
-			},
-			actions: [{ action: 'powerOn', options: [] }],
-			feedbacks: [],
-		})
-
-		presets.push({
-			category: 'Basics',
-			label: 'Power off',
-			bank: {
-				style: 'text',
-				text: `Power Off`,
-				size: '14',
-				color: this.rgb(255, 255, 255),
-				bgcolor: this.rgb(0, 0, 0),
-			},
-			actions: [{ action: 'powerOff', options: [] }],
-			feedbacks: [],
-		})
-
-		presets.push({
-			category: 'Basics',
-			label: 'Mute',
-			bank: {
-				style: 'text',
-				text: `Volume Mute`,
-				size: '14',
-				color: this.rgb(255, 255, 255),
-				bgcolor: this.rgb(0, 0, 0),
-				latch: true,
-			},
-			actions: [{ action: 'setVolumeMute', options: { "mute": true }}],
-			release_actions: [{ action: 'setVolumeMute', options: { "mute": false }}],
-			feedbacks: [],
-		})
-
-		presets.push({
-			category: 'Basics',
-			label: 'HDMI 1',
-			bank: {
-				style: 'text',
-				text: `HDMI 1`,
-				size: '14',
-				color: this.rgb(255, 255, 255),
-				bgcolor: this.rgb(0, 0, 0),
-			},
-			actions: [{ action: 'setInput', options: {'input': Inputs.hdmi1} }],
-		})
-
-		presets.push({
-			category: 'Basics',
-			label: 'HDMI 2',
-			bank: {
-				style: 'text',
-				text: `HDMI 2`,
-				size: '14',
-				color: this.rgb(255, 255, 255),
-				bgcolor: this.rgb(0, 0, 0),
-			},
-			actions: [{ action: 'setInput', options: {'input': Inputs.hdmi2} }],
-		})
-
-		presets.push({
-			category: 'Basics',
-			label: 'Blank Screen',
-			bank: {
-				style: 'text',
-				text: `Blank Screen`,
-				size: '14',
-				color: this.rgb(255, 255, 255),
-				bgcolor: this.rgb(0, 0, 0),
-				latch: true,
-			},
-			actions: [{ action: 'setEnergySaving', options: { 'level': 'screenOff'} }],
-			release_actions: [{ action: 'setEnergySaving', options: { 'level': 'off' }}],
-		})
-
-		this.setPresetDefinitions(presets)
-	}
-
-	actions(system) {
-		this.setActions({
-			powerOn: {
-				label: 'Power On Display',
-				options: [],
-			},
-			powerOff: {
-				label: 'Power Off Display',
-				options: [],
-			},
-			setInput: {
-				label: 'Set Input',
-				options: [
-					{
-						type: 'dropdown',
-						id: 'input',
-						label: 'Input:',
-						width: 3,
-						required: true,
-						choices: [
-							{ id: 'dtv'      , label: 'Digital TV' },
-							{ id: 'atv'      , label: 'Analog TV' },
-							{ id: 'cadtv'    , label: 'Cable Digital TV' },
-							{ id: 'catv'     , label: 'Cable TV' },
-							{ id: 'av'       , label: 'AV Composite' },
-							{ id: 'component', label: 'Component' },
-							{ id: 'hdmi1'    , label: 'HDMI 1' },
-							{ id: 'hdmi2'    , label: 'HDMI 2' },
-							{ id: 'hdmi3'    , label: 'HDMI 3' },
-							{ id: 'hdmi4'    , label: 'HDMI 4' }
-						  ]
-					},
-				],
-			},
-			sendKey: {
-				label: 'Send Key',
-				options: [
-					{
-						type: 'dropdown',
-						id: 'key',
-						label: 'Key:',
-						width: 3,
-						required: true,
-						choices: this.available_keys
-					},
-				],
-			},
-			setVolume: {
-				label: 'Set Volume',
-				options: [
-					{
-						type: 'number',
-						id: 'vol',
-						label: 'Volume Level (0-100):',
-						width: 3,
-						required: true
-					},
-				],
-			},
-			setVolumeMute: {
-				label: 'Volume Mute',
-				options: [
-					{
-						type: 'checkbox',
-						label: 'Mute:',
-						id: 'mute',
-						default: true
-					},
-				],
-			},
-			setEnergySaving: {
-				label: 'Set Energy Saving',
-				options: [
-					{
-						type: 'dropdown',
-						id: 'level',
-						label: 'Level:',
-						width: 3,
-						required: true,
-						choices: this.available_energyLevels
-					},
-				],
-			},
-		})
-	}
-
-	async action(action) {
-		if (this.lgtv) {
-			switch (action.action) {
-				case 'powerOn':
-					this.lgtv.powerOn()
-					this.log('info', 'Sending WOL magic packet to ' + this.DefaultSettings.networkWolAddress)
-					break
-				case 'powerOff':
-					await this.lgtv.powerOff()
-					break
-				case 'setInput':
-					await this.lgtv.setInput(eval('Inputs.' + action.options.input))
-					break
-				case 'sendKey':
-					await this.lgtv.sendKey(eval('Keys.' + action.options.key))
-					break
-				case 'setVolume':
-					await this.lgtv.setVolume(action.options.vol)
-					break
-				case 'setVolumeMute':
-					await this.lgtv.setVolumeMute(action.options.mute)
-					break
-				case 'setEnergySaving':
-					await this.lgtv.setEnergySaving(eval('EnergySavingLevels.' + action.options.level))
-					break
+			this.log('debug', `Connecting to ${this.config.host}`)
+			try {
+				this.lgtv = new LGTV(this.config.host, this.config.mac, this.config.code, this.DefaultSettings);
+				this.lgtv
+					.connect()
+					.then(() => {
+						this.log('info', `Connected to ${this.config.host}`);
+						this.updateStatus(InstanceStatus.Ok);
+					})
+					.catch(error => {
+						this.log('error', 'Could not connect to TV.');
+						this.log('debug', error.message)
+						this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + error.message);
+					});
+					this.lgtv.socket
+			} catch (error) {
+				this.log('error', 'Error connecting to device: ' + error.message)
+				this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + error.message)
 			}
+		} else {
+			this.updateStatus(InstanceStatus.BadConfig)
 		}
+	}
+
+	async destroy() {
+		if (this.lgtv) {
+			this.lgtv.disconnect()
+		}
+		this.log('debug', `Destroying instance ${this.id}`);
 	}
 }
-exports = module.exports = instance
+
+runEntrypoint(LGTVInstance, UpgradeScripts);
