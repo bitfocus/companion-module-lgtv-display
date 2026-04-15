@@ -1,4 +1,5 @@
-const { Inputs, EnergySavingLevels } = require('lgtv-ip-control');
+const { Inputs, EnergySavingLevels, Keys } = require('lgtv-ip-control');
+const dgram = require('dgram');
 
 module.exports = {
     initActions: function () {
@@ -9,9 +10,24 @@ module.exports = {
             name: 'Power On Display',
             options: [],
             callback: async function (action) {
+                // Send WoL directly via UDP — works regardless of whether the
+                // lgtv connection object is alive or the TV is currently reachable.
+                if (self.config?.mac) {
+                    const mac = self.config.mac.replace(/[:\-]/g, '');
+                    const macBytes = Buffer.from(mac, 'hex');
+                    const magic = Buffer.concat([Buffer.alloc(6, 0xff), ...Array(16).fill(macBytes)]);
+                    const wolIp = self.config.wol_ip || '255.255.255.255';
+                    const sock = dgram.createSocket('udp4');
+                    sock.once('listening', () => {
+                        sock.setBroadcast(true);
+                        sock.send(magic, 0, magic.length, 9, wolIp, () => sock.close());
+                    });
+                    sock.bind();
+                    self.log('info', `Power on: WoL sent to ${mac} via ${wolIp}`);
+                }
+                // Also trigger via lgtv-ip-control if the connection is alive
                 if (self.lgtv) {
                     self.lgtv.powerOn();
-                    self.log('info', 'Power on');
                 }
             }
         };
@@ -115,9 +131,13 @@ module.exports = {
             ],
             callback: async function (action) {
                 if (self.lgtv) {
-                    // Send the selected key to the TV
-                    await self.lgtv.sendKey(action.options.key);
-                    self.log('info', `Key ${action.options.key} sent to TV`);
+                    // Resolve legacy saved values (property names like "volumeUp") to the
+                    // actual lgtv-ip-control values (e.g. "volumeup"). New actions store the
+                    // value directly as the dropdown id, so the fallback is a no-op for them.
+                    const requestedKey = action.options.key;
+                    const resolvedKey = Keys[requestedKey] || requestedKey;
+                    await self.lgtv.sendKey(resolvedKey);
+                    self.log('info', `Key ${requestedKey} sent to TV`);
                 }
             }
         };
