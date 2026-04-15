@@ -54,6 +54,11 @@ class LGTVInstance extends InstanceBase {
 	}
 
 	initConnection() {
+		// Clear any existing reconnect timer
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer);
+			this.reconnectTimer = null;
+		}
 		if (this.lgtv !== undefined) {
 			this.lgtv.disconnect()
 			delete this.lgtv;
@@ -80,11 +85,15 @@ class LGTVInstance extends InstanceBase {
 						this.log('error', 'Could not connect to TV.');
 						this.log('debug', error.message)
 						this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + error.message);
+						// Retry every 30s so Companion reconnects automatically once
+						// the TV comes back online after WoL wake or standby
+						this.reconnectTimer = setTimeout(() => this.initConnection(), 30000);
 					});
 					this.lgtv.socket
 			} catch (error) {
 				this.log('error', 'Error connecting to device: ' + error.message)
 				this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + error.message)
+				this.reconnectTimer = setTimeout(() => this.initConnection(), 30000);
 			}
 		} else {
 			this.updateStatus(InstanceStatus.BadConfig)
@@ -92,6 +101,10 @@ class LGTVInstance extends InstanceBase {
 	}
 
 	async destroy() {
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer);
+			this.reconnectTimer = null;
+		}
 		if (this.lgtv) {
 			this.lgtv.disconnect()
 		}
