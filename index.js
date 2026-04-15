@@ -48,7 +48,7 @@ class LGTVInstance extends InstanceBase {
 	}
 
 	initLGTV() {
-		this.available_keys = Object.keys(Keys).map(key => ({ id: key, label: key }));
+		this.available_keys = Object.entries(Keys).map(([key, value]) => ({ id: value, label: key }));
 		this.available_energyLevels = Object.keys(EnergySavingLevels).map(key => ({ id: key, label: key }));
 		this.initActions();
 	}
