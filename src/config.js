@@ -60,6 +60,15 @@ module.exports = {
         default: '255.255.255.255',
         regex: this.REGEX_IP,  // Regex for IP validation
       },
+      {
+        type: 'number',
+        id: 'poll_interval',
+        label: 'Feedback poll interval (ms)',
+        width: 6,
+        default: 2000,
+        min: 250,
+        max: 60000,
+      },
     ];
   },
 };
