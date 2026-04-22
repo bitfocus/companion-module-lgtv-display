@@ -19,3 +19,12 @@
 * Set volume
 * Mute volume
 * Set energy saving level (blank screen)
+
+**Available feedbacks in this module**
+
+* Power state (on/off/unknown)
+* Mute state (muted/unmuted)
+* IP Control enabled
+* Volume compare (=, !=, >, >=, <, <=)
+* Current app (known app list or custom app ID)
+

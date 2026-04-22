@@ -24,6 +24,13 @@ class LGTVInstance extends InstanceBase {
 		});
 		this.avaliable_keys = [];
 		this.avaliable_energyLevels = [];
+		this.feedbackState = {
+			powerState: 'unknown',
+			currentApp: '',
+			currentVolume: null,
+			isMuted: false,
+			ipControlEnabled: false,
+		};
 	}
 
 	async init(config) {
@@ -32,6 +39,7 @@ class LGTVInstance extends InstanceBase {
 
 	async configUpdated(config) {
 		this.config = config;
+		this.stopFeedbackPolling();
 
 		this.initActions();
 		this.initFeedbacks();
@@ -54,6 +62,7 @@ class LGTVInstance extends InstanceBase {
 	}
 
 	initConnection() {
+		this.stopFeedbackPolling();
 		if (this.lgtv !== undefined) {
 			this.lgtv.disconnect()
 			delete this.lgtv;
@@ -75,23 +84,30 @@ class LGTVInstance extends InstanceBase {
 					.then(() => {
 						this.log('info', `Connected to ${this.config.host}`);
 						this.updateStatus(InstanceStatus.Ok);
+						this.startFeedbackPolling();
 					})
 					.catch(error => {
 						this.log('error', 'Could not connect to TV.');
 						this.log('debug', error.message)
+						this.stopFeedbackPolling();
+						this.updateFeedbackState();
 						this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + error.message);
 					});
-					this.lgtv.socket
 			} catch (error) {
 				this.log('error', 'Error connecting to device: ' + error.message)
+				this.stopFeedbackPolling();
+				this.updateFeedbackState();
 				this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + error.message)
 			}
 		} else {
+			this.stopFeedbackPolling();
+			this.updateFeedbackState();
 			this.updateStatus(InstanceStatus.BadConfig)
 		}
 	}
 
 	async destroy() {
+		this.stopFeedbackPolling();
 		if (this.lgtv) {
 			this.lgtv.disconnect()
 		}
