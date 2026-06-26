@@ -47,3 +47,10 @@ This is module allows network control for most LG TVs manufactured since 2018.
 - `signal` — input signal present (true/false, physical inputs only)
 - `hdcp_version` — HDCP version of the current input
 - `hdcp_status` — HDCP status of the current input
+
+### Presets
+
+Ready-made buttons are grouped into categories: **Power**, **Volume**, **Navigation**
+(remote keys), **Inputs**, **Apps**, **Picture Mode**, **Screen Mute**, and **Energy
+Saving**. Power, Volume (mute), Inputs, and Apps buttons include feedback so the button
+highlights green when it matches the TV's current state.

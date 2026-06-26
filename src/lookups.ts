@@ -1,5 +1,5 @@
 import type { DropdownChoice } from '@companion-module/base'
-import { Apps, Inputs, PictureModes, ScreenMuteModes } from 'lgtv-ip-control'
+import { Apps, EnergySavingLevels, Inputs, PictureModes, ScreenMuteModes } from 'lgtv-ip-control'
 
 // Sentinel option id used by dropdowns that allow a free-form custom value.
 export const CUSTOM_ID = '__custom__'
@@ -63,6 +63,35 @@ export const screenMuteModes: Record<string, string> = {
 	[ScreenMuteModes.screenMuteOn]: 'Screen Mute (blank, keep audio)',
 	[ScreenMuteModes.videoMuteOn]: 'Video Mute',
 	[ScreenMuteModes.allMuteOff]: 'Unmute',
+}
+
+// Friendly labels for the Set Energy Saving action / presets. Keyed by the enum KEY
+// (e.g. "screenOff") because the action stores the key and converts it via
+// EnergySavingLevels[key] when sending.
+export const energyLevelNames: Record<keyof typeof EnergySavingLevels, string> = {
+	auto: 'Auto',
+	screenOff: 'Blank Screen',
+	maximum: 'Maximum',
+	medium: 'Medium',
+	minimum: 'Minimum',
+	off: 'Off',
+}
+
+// Maps a Set Input action value (Inputs enum) to the id getCurrentApp() reports for
+// that input, so input presets can show the "Current Input" feedback. Tuner inputs
+// (DTV/ATV/Cable) all report as Live TV. Inputs not listed here have no clean 1:1
+// current-state id and simply omit the feedback.
+export const inputToCurrentAppId: Record<string, string> = {
+	[Inputs.dtv]: 'com.webos.app.livetv',
+	[Inputs.atv]: 'com.webos.app.livetv',
+	[Inputs.cadtv]: 'com.webos.app.livetv',
+	[Inputs.catv]: 'com.webos.app.livetv',
+	[Inputs.av]: 'com.webos.app.externalinput.av1',
+	[Inputs.component]: 'com.webos.app.externalinput.component',
+	[Inputs.hdmi1]: 'com.webos.app.hdmi1',
+	[Inputs.hdmi2]: 'com.webos.app.hdmi2',
+	[Inputs.hdmi3]: 'com.webos.app.hdmi3',
+	[Inputs.hdmi4]: 'com.webos.app.hdmi4',
 }
 
 // Choices for the "Set Input" action / presets. This uses the Inputs enum values
