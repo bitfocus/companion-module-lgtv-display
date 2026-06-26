@@ -1,6 +1,6 @@
 {
 	"name": "lgtv-display",
-	"version": "2.0.0",
+	"version": "2.1.0-beta.1",
 	"type": "module",
 	"main": "dist/main.js",
 	"scripts": {
@@ -27,12 +27,12 @@
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^2.7.2",
-		"@types/node": "^22.19.17",
+		"@types/node": "^22.20.0",
 		"eslint": "^9.39.4",
 		"prettier": "^3.8.4",
 		"rimraf": "^6.1.3",
 		"typescript": "~5.9.3",
-		"typescript-eslint": "^8.59.0"
+		"typescript-eslint": "^8.62.0"
 	},
 	"prettier": "@companion-module/tools/.prettierrc.json",
 	"packageManager": "yarn@4.17.0"
