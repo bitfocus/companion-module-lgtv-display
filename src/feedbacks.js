@@ -1,5 +1,6 @@
 const { combineRgb } = require('@companion-module/base')
 const { Apps, PowerStates } = require('lgtv-ip-control')
+const { appNames, inputNames, toChoices } = require('./lookups')
 
 const POLL_MIN = 250
 const POLL_MAX = 60000
@@ -148,10 +149,7 @@ module.exports = {
 					id: 'app',
 					label: 'App',
 					default: Apps.netflix,
-					choices: [
-						...Object.entries(Apps).map(([key, value]) => ({ id: value, label: key })),
-						{ id: '__custom__', label: 'Custom App ID (below)' },
-					],
+					choices: toChoices(appNames, 'Custom App ID (below)'),
 				},
 				{
 					type: 'textinput',
@@ -172,6 +170,44 @@ module.exports = {
 				}
 
 				return currentApp === selectedApp
+			},
+		}
+
+		feedbacks.currentInput = {
+			type: 'boolean',
+			name: 'Current input',
+			description: 'True when the current physical input matches the selected input',
+			defaultStyle: {
+				color: combineRgb(255, 255, 255),
+				bgcolor: combineRgb(0, 153, 0),
+			},
+			options: [
+				{
+					type: 'dropdown',
+					id: 'input',
+					label: 'Input',
+					default: 'com.webos.app.hdmi1',
+					choices: toChoices(inputNames, 'Custom Input ID (below)'),
+				},
+				{
+					type: 'textinput',
+					id: 'customInputId',
+					label: 'Custom Input ID',
+					default: '',
+				},
+			],
+			callback: function (feedback) {
+				const currentApp = String(self.feedbackState?.currentApp ?? '').trim()
+				const selectedInput =
+					feedback.options.input === '__custom__'
+						? String(feedback.options.customInputId ?? '').trim()
+						: String(feedback.options.input ?? '').trim()
+
+				if (!selectedInput || !currentApp) {
+					return false
+				}
+
+				return currentApp === selectedInput
 			},
 		}
 

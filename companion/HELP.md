@@ -27,6 +27,7 @@
 - IP Control enabled
 - Volume compare (=, !=, >, >=, <, <=)
 - Current app (known app list or custom app ID)
+- Current input (HDMI/AV/Component/Live TV or custom input ID)
 
 **Available variables in this module**
 
@@ -34,5 +35,6 @@
 - `muted` — mute state (true/false)
 - `volume` — current volume (0-100)
 - `ip_control_enabled` — IP control enabled (true/false)
-- `current_app` — current app friendly name
-- `current_app_id` — current app raw id
+- `current_app` — current streaming app friendly name (blank when on a physical input)
+- `current_input` — current input friendly name, e.g. HDMI 1 (blank when in an app)
+- `current_app_id` — current app/input raw id
