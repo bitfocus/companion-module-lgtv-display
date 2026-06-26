@@ -73,7 +73,6 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		this.connectFailures = 0
 		this.stopFeedbackPolling()
 
-		this.updateActions()
 		this.updateFeedbacks()
 		this.updateVariableDefinitions()
 		this.updatePresets()
@@ -199,7 +198,6 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	// Clear cached TV state and refresh feedbacks/variables (used when not connected).
 	private resetFeedbackState(): void {
 		this.feedbackState = {
-			...this.feedbackState,
 			powerState: PowerStates.unknown,
 			currentApp: '',
 			currentVolume: null,
@@ -225,8 +223,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			return
 		}
 
-		const interval =
-			Number.isFinite(requested) && requested >= POLL_MIN && requested <= POLL_MAX ? requested : POLL_DEFAULT
+		const interval = Number.isFinite(requested) ? Math.min(POLL_MAX, Math.max(POLL_MIN, requested)) : POLL_DEFAULT
 
 		this.feedbackPollTimer = setInterval(() => {
 			void this.updateFeedbackState()
