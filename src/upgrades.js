@@ -38,6 +38,22 @@ module.exports = [
 			}
 		}
 
+		// The "Volume Mute" action used to be a checkbox storing a boolean. It is now
+		// a dropdown with "toggle"/"mute"/"unmute", so convert old boolean values.
+		for (const action of props.actions) {
+			if (action.actionId !== 'setVolumeMute') {
+				continue
+			}
+
+			if (action.options.mute === true) {
+				action.options.mute = 'mute'
+				result.updatedActions.push(action)
+			} else if (action.options.mute === false) {
+				action.options.mute = 'unmute'
+				result.updatedActions.push(action)
+			}
+		}
+
 		return result
 	},
 ]

@@ -31,19 +31,36 @@ module.exports = {
 		}
 
 		actions.setVolumeMute = {
-			name: 'Volume Mute',
+			name: 'Volume Mute Controls',
 			options: [
 				{
-					type: 'checkbox',
-					label: 'Mute:',
+					type: 'dropdown',
+					label: 'Mute',
 					id: 'mute',
-					default: true,
+					default: 'toggle',
+					choices: [
+						{ id: 'toggle', label: 'Toggle' },
+						{ id: 'mute', label: 'Mute' },
+						{ id: 'unmute', label: 'Unmute' },
+					],
 				},
 			],
 			callback: async function (action) {
 				if (self.lgtv) {
-					await self.lgtv.setVolumeMute(action.options.mute)
-					self.log('info', 'Mute')
+					let isMuted
+					switch (action.options.mute) {
+						case 'mute':
+							isMuted = true
+							break
+						case 'unmute':
+							isMuted = false
+							break
+						default:
+							isMuted = !(await self.lgtv.getMuteState())
+							break
+					}
+					await self.lgtv.setVolumeMute(isMuted)
+					self.log('info', isMuted ? 'Mute' : 'Unmute')
 					self.updateFeedbackState()
 				}
 			},
@@ -55,7 +72,7 @@ module.exports = {
 				{
 					type: 'dropdown',
 					id: 'input',
-					label: 'Input:',
+					label: 'Input',
 					width: 3,
 					required: true,
 					default: Inputs.dtv,
@@ -89,7 +106,7 @@ module.exports = {
 				{
 					type: 'dropdown',
 					id: 'level',
-					label: 'Level:',
+					label: 'Level',
 					width: 3,
 					required: true,
 					choices: self.available_energyLevels,
@@ -111,7 +128,7 @@ module.exports = {
 				{
 					type: 'dropdown',
 					id: 'key',
-					label: 'Key:',
+					label: 'Key',
 					width: 3,
 					required: true,
 					default: self.available_keys?.length > 0 ? self.available_keys[0].id : undefined,
@@ -133,7 +150,7 @@ module.exports = {
 				{
 					type: 'number',
 					id: 'vol',
-					label: 'Volume Level (0-100):',
+					label: 'Volume Level (0-100)',
 					width: 3,
 					required: true,
 				},
@@ -154,7 +171,7 @@ module.exports = {
 				{
 					type: 'dropdown',
 					id: 'app',
-					label: 'App:',
+					label: 'App',
 					width: 3,
 					required: true,
 					default: Apps.netflix,
@@ -163,7 +180,7 @@ module.exports = {
 				{
 					type: 'textinput',
 					id: 'customAppId',
-					label: 'Custom App ID:',
+					label: 'Custom App ID',
 					default: '',
 					isVisibleExpression: `$(options:app) == '__custom__'`,
 				},
@@ -189,7 +206,7 @@ module.exports = {
 				{
 					type: 'dropdown',
 					id: 'mode',
-					label: 'Mode:',
+					label: 'Mode',
 					width: 3,
 					required: true,
 					default: Object.keys(pictureModes)[0],
@@ -211,7 +228,7 @@ module.exports = {
 				{
 					type: 'dropdown',
 					id: 'mode',
-					label: 'Mode:',
+					label: 'Mode',
 					width: 3,
 					required: true,
 					default: Object.keys(screenMuteModes)[0],

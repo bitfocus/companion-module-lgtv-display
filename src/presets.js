@@ -54,8 +54,7 @@ module.exports = {
 				},
 				steps: [
 					{
-						down: [{ actionId: 'setVolumeMute', options: { mute: true } }],
-						up: [{ actionId: 'setVolumeMute', options: { mute: false } }],
+						down: [{ actionId: 'setVolumeMute', options: { mute: 'toggle' } }],
 					},
 				],
 			},
