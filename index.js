@@ -22,8 +22,8 @@ class LGTVInstance extends InstanceBase {
 			...presets,
 			...utils,
 		})
-		this.avaliable_keys = []
-		this.avaliable_energyLevels = []
+		this.available_keys = []
+		this.available_energyLevels = []
 	}
 
 	async init(config) {
@@ -48,8 +48,9 @@ class LGTVInstance extends InstanceBase {
 	}
 
 	initLGTV() {
-		this.available_keys = Object.entries(Keys).map(([key, value]) => ({ id: value, label: key }))
-		this.available_energyLevels = Object.keys(EnergySavingLevels).map((key) => ({ id: key, label: key }))
+		const camelToTitle = (str) => str.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase())
+		this.available_keys = Object.entries(Keys).map(([key, value]) => ({ id: value, label: camelToTitle(key) }))
+		this.available_energyLevels = Object.keys(EnergySavingLevels).map((key) => ({ id: key, label: camelToTitle(key) }))
 		this.initActions()
 	}
 
