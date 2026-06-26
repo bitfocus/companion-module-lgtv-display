@@ -11,7 +11,7 @@ module.exports = {
             callback: async function (action) {
                 if (self.lgtv) {
                     self.lgtv.powerOn();
-                    self.log('info', 'Power on');
+                    self.log('info', 'Power on: WoL sent');
                 }
             }
         };
@@ -115,7 +115,6 @@ module.exports = {
             ],
             callback: async function (action) {
                 if (self.lgtv) {
-                    // Send the selected key to the TV
                     await self.lgtv.sendKey(action.options.key);
                     self.log('info', `Key ${action.options.key} sent to TV`);
                 }
