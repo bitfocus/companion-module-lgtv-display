@@ -57,6 +57,8 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	private reconnectTimer: NodeJS.Timeout | null = null
 	private feedbackPollTimer: NodeJS.Timeout | undefined = undefined
 	private feedbackPollInFlight = false
+	// Failed connects in a row, so the "TV may be off" notice logs only once.
+	private connectFailures = 0
 
 	constructor(internal: unknown) {
 		super(internal)
@@ -68,6 +70,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
 	async configUpdated(config: ModuleConfig): Promise<void> {
 		this.config = config
+		this.connectFailures = 0
 		this.stopFeedbackPolling()
 
 		this.updateActions()
@@ -150,32 +153,64 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				this.lgtv
 					.connect()
 					.then(() => {
+						this.connectFailures = 0
 						this.log('info', `Connected to ${this.config.host}`)
 						this.updateStatus(InstanceStatus.Ok)
 						this.startFeedbackPolling()
 					})
 					.catch((error: unknown) => {
-						this.log('error', 'Could not connect to TV.')
-						this.log('debug', errorMessage(error))
-						this.stopFeedbackPolling()
-						void this.updateFeedbackState()
-						this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + errorMessage(error))
-						// Retry every 30s so Companion reconnects automatically once
-						// the TV comes back online after WoL wake or standby
-						this.reconnectTimer = setTimeout(() => this.initConnection(), 30000)
+						// A failed connect usually just means the TV is powered off.
+						this.onConnectionLost(error)
 					})
 			} catch (error) {
-				this.log('error', 'Error connecting to device: ' + errorMessage(error))
-				this.stopFeedbackPolling()
-				void this.updateFeedbackState()
-				this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + errorMessage(error))
-				this.reconnectTimer = setTimeout(() => this.initConnection(), 30000)
+				this.onConnectionLost(error)
 			}
 		} else {
 			this.stopFeedbackPolling()
-			void this.updateFeedbackState()
+			this.resetFeedbackState()
 			this.updateStatus(InstanceStatus.BadConfig)
 		}
+	}
+
+	// Treat a lost/failed connection as an off TV: show "Disconnected", log once, and
+	// keep retrying quietly so we reconnect automatically when the TV returns.
+	private onConnectionLost(error: unknown): void {
+		this.stopFeedbackPolling()
+		this.resetFeedbackState()
+
+		if (this.connectFailures === 0) {
+			this.log(
+				'info',
+				`Not connected to ${this.config.host}. The TV may be powered off — retrying every 30s. (${errorMessage(error)})`,
+			)
+		} else {
+			this.log('debug', `Still not connected to ${this.config.host}: ${errorMessage(error)}`)
+		}
+		this.connectFailures++
+
+		this.updateStatus(InstanceStatus.Disconnected, 'Not connected — the TV may be powered off')
+
+		// Retry every 30s; guard against scheduling more than one timer.
+		if (!this.reconnectTimer) {
+			this.reconnectTimer = setTimeout(() => this.initConnection(), 30000)
+		}
+	}
+
+	// Clear cached TV state and refresh feedbacks/variables (used when not connected).
+	private resetFeedbackState(): void {
+		this.feedbackState = {
+			...this.feedbackState,
+			powerState: PowerStates.unknown,
+			currentApp: '',
+			currentVolume: null,
+			isMuted: false,
+			ipControlEnabled: false,
+			signal: undefined,
+			hdcpVersion: '',
+			hdcpStatus: '',
+		}
+		this.checkFeedbacks()
+		this.checkVariables()
 	}
 
 	startFeedbackPolling(): void {
@@ -217,19 +252,12 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
 		try {
 			if (!this.lgtv || !this.lgtv.connected) {
-				this.feedbackState = {
-					...this.feedbackState,
-					powerState: PowerStates.unknown,
-					currentApp: '',
-					currentVolume: null,
-					isMuted: false,
-					ipControlEnabled: false,
-					signal: undefined,
-					hdcpVersion: '',
-					hdcpStatus: '',
+				this.resetFeedbackState()
+				// Connection dropped mid-session: enter the reconnect loop instead of
+				// polling a dead socket (guarded so we don't double-schedule).
+				if (this.lgtv && !this.reconnectTimer) {
+					this.onConnectionLost(new Error('connection lost'))
 				}
-				this.checkFeedbacks()
-				this.checkVariables()
 				return
 			}
 
