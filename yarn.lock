@@ -970,7 +970,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^9.36.0":
+"eslint@npm:^9.39.4":
   version: 9.39.4
   resolution: "eslint@npm:9.39.4"
   dependencies:
@@ -1438,7 +1438,7 @@ __metadata:
   dependencies:
     "@companion-module/base": "npm:^1.14.1"
     "@companion-module/tools": "npm:^2.7.2"
-    eslint: "npm:^9.36.0"
+    eslint: "npm:^9.39.4"
     lgtv-ip-control: "npm:^4.4.0"
     prettier: "npm:^3.8.4"
   languageName: unknown

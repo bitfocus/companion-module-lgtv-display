@@ -1,4 +1,4 @@
-const { InstanceBase, InstanceStatus, runEntrypoint } = require('@companion-module/base')
+const { InstanceBase, InstanceStatus, Regex, runEntrypoint } = require('@companion-module/base')
 const UpgradeScripts = require('./src/upgrades')
 const { LGTV, EnergySavingLevels, Keys, DefaultSettings } = require('lgtv-ip-control')
 
@@ -78,7 +78,7 @@ class LGTVInstance extends InstanceBase {
 		}
 		this.updateStatus(InstanceStatus.Connecting)
 		this.DefaultSettings = Object.assign({}, DefaultSettings)
-		if (this.config.wol_ip && this.REGEX_IP.test(this.config.wol_ip)) {
+		if (this.config.wol_ip) {
 			this.DefaultSettings.networkWolAddress = this.config.wol_ip
 		} else {
 			this.DefaultSettings.networkWolAddress = '255.255.255.255' // Default value if invalid

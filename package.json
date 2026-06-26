@@ -21,7 +21,7 @@
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^2.7.2",
-		"eslint": "^9.36.0",
+		"eslint": "^9.39.4",
 		"prettier": "^3.8.4"
 	},
 	"prettier": "@companion-module/tools/.prettierrc.json",
