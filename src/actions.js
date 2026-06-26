@@ -1,4 +1,4 @@
-const { Inputs, EnergySavingLevels, Keys } = require('lgtv-ip-control');
+const { Inputs, EnergySavingLevels } = require('lgtv-ip-control');
 const dgram = require('dgram');
 
 module.exports = {
@@ -131,13 +131,8 @@ module.exports = {
             ],
             callback: async function (action) {
                 if (self.lgtv) {
-                    // Resolve legacy saved values (property names like "volumeUp") to the
-                    // actual lgtv-ip-control values (e.g. "volumeup"). New actions store the
-                    // value directly as the dropdown id, so the fallback is a no-op for them.
-                    const requestedKey = action.options.key;
-                    const resolvedKey = Keys[requestedKey] || requestedKey;
-                    await self.lgtv.sendKey(resolvedKey);
-                    self.log('info', `Key ${requestedKey} sent to TV`);
+                    await self.lgtv.sendKey(action.options.key);
+                    self.log('info', `Key ${action.options.key} sent to TV`);
                 }
             }
         };
