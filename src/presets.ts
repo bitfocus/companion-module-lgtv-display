@@ -110,10 +110,10 @@ export function UpdatePresets(self: ModuleInstance): void {
 
 	// --- Navigation (remote keys) ---
 	const navKeys: { name: string; text: string; key: Keys }[] = [
-		{ name: 'Up', text: '▲', key: Keys.arrowUp },
-		{ name: 'Down', text: '▼', key: Keys.arrowDown },
-		{ name: 'Left', text: '◀', key: Keys.arrowLeft },
-		{ name: 'Right', text: '▶', key: Keys.arrowRight },
+		{ name: 'Up', text: 'Up', key: Keys.arrowUp },
+		{ name: 'Down', text: 'Down', key: Keys.arrowDown },
+		{ name: 'Left', text: 'Left', key: Keys.arrowLeft },
+		{ name: 'Right', text: 'Right', key: Keys.arrowRight },
 		{ name: 'OK', text: 'OK', key: Keys.ok },
 		{ name: 'Back', text: 'Back', key: Keys.back },
 		{ name: 'Home', text: 'Home', key: Keys.home },
