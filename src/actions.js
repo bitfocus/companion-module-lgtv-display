@@ -12,6 +12,7 @@ module.exports = {
 				if (self.lgtv) {
 					self.lgtv.powerOn()
 					self.log('info', 'Power on: WoL sent')
+					self.updateFeedbackState()
 				}
 			},
 		}
@@ -23,6 +24,7 @@ module.exports = {
 				if (self.lgtv) {
 					await self.lgtv.powerOff()
 					self.log('info', 'Power off')
+					self.updateFeedbackState()
 				}
 			},
 		}
@@ -41,6 +43,7 @@ module.exports = {
 				if (self.lgtv) {
 					await self.lgtv.setVolumeMute(action.options.mute)
 					self.log('info', 'Mute')
+					self.updateFeedbackState()
 				}
 			},
 		}
@@ -74,6 +77,7 @@ module.exports = {
 					// Set the input source for the TV
 					await self.lgtv.setInput(action.options.input)
 					self.log('info', `Input set to ${action.options.input}`)
+					self.updateFeedbackState()
 				}
 			},
 		}
@@ -95,6 +99,7 @@ module.exports = {
 					// Set the energy saving mode for the TV
 					await self.lgtv.setEnergySaving(EnergySavingLevels[action.options.level])
 					self.log('info', `Energy Saving set to ${action.options.level}`)
+					self.updateFeedbackState()
 				}
 			},
 		}
@@ -116,6 +121,7 @@ module.exports = {
 				if (self.lgtv) {
 					await self.lgtv.sendKey(action.options.key)
 					self.log('info', `Key ${action.options.key} sent to TV`)
+					self.updateFeedbackState()
 				}
 			},
 		}
@@ -136,6 +142,7 @@ module.exports = {
 					// Set the TV volume
 					await self.lgtv.setVolume(action.options.vol)
 					self.log('info', `Volume set to ${action.options.vol}`)
+					self.updateFeedbackState()
 				}
 			},
 		}

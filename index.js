@@ -24,6 +24,13 @@ class LGTVInstance extends InstanceBase {
 		})
 		this.available_keys = []
 		this.available_energyLevels = []
+		this.feedbackState = {
+			powerState: 'unknown',
+			currentApp: '',
+			currentVolume: null,
+			isMuted: false,
+			ipControlEnabled: false,
+		}
 	}
 
 	async init(config) {
@@ -32,6 +39,7 @@ class LGTVInstance extends InstanceBase {
 
 	async configUpdated(config) {
 		this.config = config
+		this.stopFeedbackPolling()
 
 		this.initActions()
 		this.initFeedbacks()
@@ -60,6 +68,7 @@ class LGTVInstance extends InstanceBase {
 			clearTimeout(this.reconnectTimer)
 			this.reconnectTimer = null
 		}
+		this.stopFeedbackPolling()
 		if (this.lgtv !== undefined) {
 			this.lgtv.disconnect()
 			delete this.lgtv
@@ -81,10 +90,13 @@ class LGTVInstance extends InstanceBase {
 					.then(() => {
 						this.log('info', `Connected to ${this.config.host}`)
 						this.updateStatus(InstanceStatus.Ok)
+						this.startFeedbackPolling()
 					})
 					.catch((error) => {
 						this.log('error', 'Could not connect to TV.')
 						this.log('debug', error.message)
+						this.stopFeedbackPolling()
+						this.updateFeedbackState()
 						this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + error.message)
 						// Retry every 30s so Companion reconnects automatically once
 						// the TV comes back online after WoL wake or standby
@@ -93,10 +105,14 @@ class LGTVInstance extends InstanceBase {
 				this.lgtv.socket
 			} catch (error) {
 				this.log('error', 'Error connecting to device: ' + error.message)
+				this.stopFeedbackPolling()
+				this.updateFeedbackState()
 				this.updateStatus(InstanceStatus.ConnectionFailure, 'Error connecting to device: ' + error.message)
 				this.reconnectTimer = setTimeout(() => this.initConnection(), 30000)
 			}
 		} else {
+			this.stopFeedbackPolling()
+			this.updateFeedbackState()
 			this.updateStatus(InstanceStatus.BadConfig)
 		}
 	}
@@ -106,6 +122,7 @@ class LGTVInstance extends InstanceBase {
 			clearTimeout(this.reconnectTimer)
 			this.reconnectTimer = null
 		}
+		this.stopFeedbackPolling()
 		if (this.lgtv) {
 			this.lgtv.disconnect()
 		}

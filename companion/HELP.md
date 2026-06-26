@@ -19,3 +19,20 @@
 - Set volume
 - Mute volume
 - Set energy saving level (blank screen)
+
+**Available feedbacks in this module**
+
+- Power state (on/off/unknown)
+- Mute state (muted/unmuted)
+- IP Control enabled
+- Volume compare (=, !=, >, >=, <, <=)
+- Current app (known app list or custom app ID)
+
+**Available variables in this module**
+
+- `power_state` — current power state (on/off/unknown)
+- `muted` — mute state (true/false)
+- `volume` — current volume (0-100)
+- `ip_control_enabled` — IP control enabled (true/false)
+- `current_app` — current app friendly name
+- `current_app_id` — current app raw id

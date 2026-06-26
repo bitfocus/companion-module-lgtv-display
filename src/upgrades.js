@@ -16,6 +16,13 @@ module.exports = [
 			updatedFeedbacks: [],
 		}
 
+		// The feedback polling feature added a "poll_interval" config field. Existing
+		// instances have no value for it, so seed the same default the config field uses.
+		if (props.config && props.config.poll_interval === undefined) {
+			props.config.poll_interval = 2000
+			result.updatedConfig = props.config
+		}
+
 		// Legacy "Send Key" actions stored the Keys property name (e.g. "volumeUp")
 		// as the option value. The dropdown now uses the actual lgtv-ip-control value
 		// (e.g. "volumeup"), so convert any old values to their proper value.
