@@ -15,15 +15,15 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			id: 'info',
 			label: 'Setup Instructions',
 			width: 12,
-			value: `
-      - Open the "All Settings" menu on the TV.
-			- Using the remote arrows, navigate the focus to "Connection" but do not enter it. For some TVs, this may say "Network" instead.
-			- Quickly, press 82888 using the remote numeric buttons.
-			- Note the MAC and IP addresses for client configuration. The MAC address is required to remotely power on the TV.
-			- Select and enable "Network IP Control".
-			- For TVs that require encryption, there is a "Generate Keycode" option. Click it and note the 8 characters code displayed for client configuration. This keycode is required for all commands except power on. A new keycode can be generated at any time.
-			- To allow the TV to be powered on remotely, enable "Wake On LAN".
-        `,
+			value: [
+				'1. Open the **All Settings** menu on the TV.',
+				'2. Using the remote arrows, navigate the focus to **Connection** but do not enter it. For some TVs, this may say **Network** instead.',
+				'3. Quickly, press **82888** using the remote numeric buttons.',
+				'4. Note the **MAC** and **IP** addresses for client configuration. The MAC address is required to remotely power on the TV.',
+				'5. Select and enable **Network IP Control**.',
+				'6. For TVs that require encryption, there is a **Generate Keycode** option. Click it and note the 8 character code displayed for client configuration. This keycode is required for all commands except power on. A new keycode can be generated at any time.',
+				'7. To allow the TV to be powered on remotely, enable **Wake On LAN**.',
+			].join('\n'),
 		},
 		{
 			type: 'textinput',
