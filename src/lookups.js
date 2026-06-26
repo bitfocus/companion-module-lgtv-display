@@ -1,4 +1,4 @@
-const { Apps } = require('lgtv-ip-control')
+const { Apps, PictureModes, ScreenMuteModes } = require('lgtv-ip-control')
 
 // Friendly display names for the streaming apps in lgtv-ip-control's Apps enum,
 // keyed by the app id getCurrentApp() reports. Used for both the "Current app"
@@ -41,9 +41,34 @@ const inputNames = {
 // specific app, so we show a friendly "webOS" label there.
 const homeIds = new Set(['com.webos.app.home', 'com.webos.app.homeconnect'])
 
+// Friendly labels for the Set Picture Mode action. Keyed by the enum VALUE because
+// setPictureMode asserts the value is in Object.values(PictureModes).
+const pictureModes = {
+	[PictureModes.cinema]: 'Cinema',
+	[PictureModes.eco]: 'Eco',
+	[PictureModes.filmMaker]: 'Filmmaker',
+	[PictureModes.game]: 'Game',
+	[PictureModes.normal]: 'Normal',
+	[PictureModes.sports]: 'Sports',
+	[PictureModes.vivid]: 'Vivid',
+}
+
+// Friendly labels for the Set Screen Mute action. Keyed by the enum VALUE because
+// setScreenMute asserts the value is in Object.values(ScreenMuteModes).
+const screenMuteModes = {
+	[ScreenMuteModes.screenMuteOn]: 'Screen Mute (blank, keep audio)',
+	[ScreenMuteModes.videoMuteOn]: 'Video Mute',
+	[ScreenMuteModes.allMuteOff]: 'Unmute',
+}
+
 // Build { id, label } choice lists for dropdowns, with a custom-id escape hatch.
 function toChoices(map, customLabel) {
 	return [...Object.entries(map).map(([id, label]) => ({ id, label })), { id: '__custom__', label: customLabel }]
 }
 
-module.exports = { appNames, inputNames, homeIds, toChoices }
+// Same, but for fixed enums where a custom id makes no sense.
+function toChoicesNoCustom(map) {
+	return Object.entries(map).map(([id, label]) => ({ id, label }))
+}
+
+module.exports = { appNames, inputNames, homeIds, pictureModes, screenMuteModes, toChoices, toChoicesNoCustom }

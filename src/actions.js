@@ -1,4 +1,5 @@
-const { Inputs, EnergySavingLevels } = require('lgtv-ip-control')
+const { Inputs, EnergySavingLevels, Apps } = require('lgtv-ip-control')
+const { appNames, pictureModes, screenMuteModes, toChoices, toChoicesNoCustom } = require('./lookups')
 
 module.exports = {
 	initActions: function () {
@@ -34,7 +35,7 @@ module.exports = {
 			options: [
 				{
 					type: 'checkbox',
-					name: 'Mute:',
+					label: 'Mute:',
 					id: 'mute',
 					default: true,
 				},
@@ -54,7 +55,7 @@ module.exports = {
 				{
 					type: 'dropdown',
 					id: 'input',
-					name: 'Input:',
+					label: 'Input:',
 					width: 3,
 					required: true,
 					default: Inputs.dtv,
@@ -88,7 +89,7 @@ module.exports = {
 				{
 					type: 'dropdown',
 					id: 'level',
-					name: 'Level:',
+					label: 'Level:',
 					width: 3,
 					required: true,
 					choices: self.available_energyLevels,
@@ -110,7 +111,7 @@ module.exports = {
 				{
 					type: 'dropdown',
 					id: 'key',
-					name: 'Key:',
+					label: 'Key:',
 					width: 3,
 					required: true,
 					default: self.available_keys?.length > 0 ? self.available_keys[0].id : undefined,
@@ -132,7 +133,7 @@ module.exports = {
 				{
 					type: 'number',
 					id: 'vol',
-					name: 'Volume Level (0-100):',
+					label: 'Volume Level (0-100):',
 					width: 3,
 					required: true,
 				},
@@ -142,6 +143,85 @@ module.exports = {
 					// Set the TV volume
 					await self.lgtv.setVolume(action.options.vol)
 					self.log('info', `Volume set to ${action.options.vol}`)
+					self.updateFeedbackState()
+				}
+			},
+		}
+
+		actions.launchApp = {
+			name: 'Launch App',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'app',
+					label: 'App:',
+					width: 3,
+					required: true,
+					default: Apps.netflix,
+					choices: toChoices(appNames, 'Custom App ID'),
+				},
+				{
+					type: 'textinput',
+					id: 'customAppId',
+					label: 'Custom App ID:',
+					default: '',
+					isVisibleExpression: `$(options:app) == '__custom__'`,
+				},
+			],
+			callback: async function (action) {
+				if (self.lgtv) {
+					const appId =
+						action.options.app === '__custom__' ? String(action.options.customAppId ?? '').trim() : action.options.app
+					if (!appId) {
+						self.log('warn', 'Launch App: no app selected')
+						return
+					}
+					await self.lgtv.launchApp(appId)
+					self.log('info', `Launched app ${appId}`)
+					self.updateFeedbackState()
+				}
+			},
+		}
+
+		actions.setPictureMode = {
+			name: 'Set Picture Mode',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'mode',
+					label: 'Mode:',
+					width: 3,
+					required: true,
+					default: Object.keys(pictureModes)[0],
+					choices: toChoicesNoCustom(pictureModes),
+				},
+			],
+			callback: async function (action) {
+				if (self.lgtv) {
+					await self.lgtv.setPictureMode(action.options.mode)
+					self.log('info', `Picture mode set to ${action.options.mode}`)
+					self.updateFeedbackState()
+				}
+			},
+		}
+
+		actions.setScreenMute = {
+			name: 'Set Screen Mute',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'mode',
+					label: 'Mode:',
+					width: 3,
+					required: true,
+					default: Object.keys(screenMuteModes)[0],
+					choices: toChoicesNoCustom(screenMuteModes),
+				},
+			],
+			callback: async function (action) {
+				if (self.lgtv) {
+					await self.lgtv.setScreenMute(action.options.mode)
+					self.log('info', `Screen mute set to ${action.options.mode}`)
 					self.updateFeedbackState()
 				}
 			},

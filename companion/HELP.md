@@ -19,6 +19,9 @@
 - Set volume
 - Mute volume
 - Set energy saving level (blank screen)
+- Launch app (known app list or custom app ID)
+- Set picture mode (Cinema/Game/Vivid/...)
+- Set screen mute (blank keeping audio / video mute / unmute)
 
 **Available feedbacks in this module**
 
@@ -28,6 +31,7 @@
 - Volume compare (=, !=, >, >=, <, <=)
 - Current app (known app list or custom app ID)
 - Current input (HDMI/AV/Component/Live TV or custom input ID)
+- Signal present (current input is receiving a signal)
 
 **Available variables in this module**
 
@@ -38,3 +42,6 @@
 - `current_app` — current streaming app friendly name (blank when on a physical input)
 - `current_input` — current input friendly name, e.g. HDMI 1 (blank when in an app)
 - `current_app_id` — current app/input raw id
+- `signal` — input signal present (true/false, physical inputs only)
+- `hdcp_version` — HDCP version of the current input
+- `hdcp_status` — HDCP status of the current input

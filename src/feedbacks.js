@@ -149,13 +149,14 @@ module.exports = {
 					id: 'app',
 					label: 'App',
 					default: Apps.netflix,
-					choices: toChoices(appNames, 'Custom App ID (below)'),
+					choices: toChoices(appNames, 'Custom App ID'),
 				},
 				{
 					type: 'textinput',
 					id: 'customAppId',
 					label: 'Custom App ID',
 					default: '',
+					isVisibleExpression: `$(options:app) == '__custom__'`,
 				},
 			],
 			callback: function (feedback) {
@@ -187,13 +188,14 @@ module.exports = {
 					id: 'input',
 					label: 'Input',
 					default: 'com.webos.app.hdmi1',
-					choices: toChoices(inputNames, 'Custom Input ID (below)'),
+					choices: toChoices(inputNames, 'Custom Input ID'),
 				},
 				{
 					type: 'textinput',
 					id: 'customInputId',
 					label: 'Custom Input ID',
 					default: '',
+					isVisibleExpression: `$(options:input) == '__custom__'`,
 				},
 			],
 			callback: function (feedback) {
@@ -208,6 +210,20 @@ module.exports = {
 				}
 
 				return currentApp === selectedInput
+			},
+		}
+
+		feedbacks.signalPresent = {
+			type: 'boolean',
+			name: 'Signal present',
+			description: 'True when the current input is receiving a signal (physical inputs only)',
+			defaultStyle: {
+				color: combineRgb(255, 255, 255),
+				bgcolor: combineRgb(0, 153, 0),
+			},
+			options: [],
+			callback: function () {
+				return self.feedbackState?.signal === true
 			},
 		}
 
@@ -264,6 +280,9 @@ module.exports = {
 					currentVolume: null,
 					isMuted: false,
 					ipControlEnabled: false,
+					signal: undefined,
+					hdcpVersion: '',
+					hdcpStatus: '',
 				}
 				self.checkFeedbacks()
 				self.checkVariables()
@@ -272,13 +291,29 @@ module.exports = {
 
 			let nextState = { ...self.feedbackState }
 
+			// getCurrentAppDetails runs the same CURRENT_APP command as getCurrentApp but
+			// also returns signal/HDCP info, so we get those for no extra round trip.
 			try {
-				const currentApp = await self.lgtv.getCurrentApp()
-				nextState.currentApp = currentApp || ''
-				nextState.powerState = currentApp === null ? PowerStates.off : PowerStates.on
+				const details = await self.lgtv.getCurrentAppDetails()
+				if (details === null) {
+					nextState.currentApp = ''
+					nextState.powerState = PowerStates.off
+					nextState.signal = undefined
+					nextState.hdcpVersion = ''
+					nextState.hdcpStatus = ''
+				} else {
+					nextState.currentApp = details.app ?? ''
+					nextState.powerState = PowerStates.on
+					nextState.signal = details.signal
+					nextState.hdcpVersion = details.hdcpVersion ?? ''
+					nextState.hdcpStatus = details.hdcpStatus ?? ''
+				}
 			} catch (error) {
 				nextState.currentApp = ''
 				nextState.powerState = PowerStates.unknown
+				nextState.signal = undefined
+				nextState.hdcpVersion = ''
+				nextState.hdcpStatus = ''
 			}
 
 			try {

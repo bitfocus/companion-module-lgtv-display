@@ -30,6 +30,9 @@ class LGTVInstance extends InstanceBase {
 			currentVolume: null,
 			isMuted: false,
 			ipControlEnabled: false,
+			signal: undefined,
+			hdcpVersion: '',
+			hdcpStatus: '',
 		}
 	}
 

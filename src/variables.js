@@ -12,6 +12,9 @@ module.exports = {
 			{ variableId: 'current_app', name: 'Current app (friendly name)' },
 			{ variableId: 'current_input', name: 'Current input (friendly name)' },
 			{ variableId: 'current_app_id', name: 'Current app/input (raw id)' },
+			{ variableId: 'signal', name: 'Input signal present (true/false)' },
+			{ variableId: 'hdcp_version', name: 'HDCP version' },
+			{ variableId: 'hdcp_status', name: 'HDCP status' },
 		]
 
 		self.setVariableDefinitions(variables)
@@ -46,6 +49,10 @@ module.exports = {
 			current_app: currentApp,
 			current_input: inputName ?? '',
 			current_app_id: appId,
+			// signal is only reported on physical inputs (undefined elsewhere).
+			signal: typeof state.signal === 'boolean' ? state.signal : '',
+			hdcp_version: state.hdcpVersion ?? '',
+			hdcp_status: state.hdcpStatus ?? '',
 		})
 	},
 }
