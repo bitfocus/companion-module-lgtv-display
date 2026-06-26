@@ -21,11 +21,6 @@
 		"entrypoint": "../index.js"
 	},
 	"manufacturer": "LG Electronics",
-	"products": [
-		"LG Display"
-	],
-	"keywords": [
-		"Tv",
-		"Display"
-	]
+	"products": ["LG Display"],
+	"keywords": ["Tv", "Display"]
 }

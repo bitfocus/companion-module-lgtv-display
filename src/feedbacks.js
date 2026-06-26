@@ -5,6 +5,6 @@ module.exports = {
 		let self = this
 		let feedbacks = {}
 
-		self.setFeedbackDefinitions(feedbacks);
-	}
+		self.setFeedbackDefinitions(feedbacks)
+	},
 }

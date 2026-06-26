@@ -1,17 +1,18 @@
-const { Regex } = require('@companion-module/base');
+const { Regex } = require('@companion-module/base')
 
 module.exports = {
-  REGEX_IP: /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,  // Regex for IP address
-  REGEX_SOMETHING: /.*/, // General catch-all regex
+	REGEX_IP:
+		/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/, // Regex for IP address
+	REGEX_SOMETHING: /.*/, // General catch-all regex
 
-  getConfigFields() {
-    return [
-      {
-        type: 'static-text',
-        id: 'info',
-        label: 'Information',
-        width: 12,
-        value: `
+	getConfigFields() {
+		return [
+			{
+				type: 'static-text',
+				id: 'info',
+				label: 'Information',
+				width: 12,
+				value: `
         <div class="alert alert-danger">
           <h3>IMPORTANT MESSAGE</h3>
           <div>
@@ -30,36 +31,36 @@ module.exports = {
           </div>
         </div>
         `,
-      },
-      {
-        type: 'textinput',
-        id: 'host',
-        label: 'Target IP',
-        width: 6,
-        regex: this.REGEX_IP,  // Regex for IP validation
-      },
-      {
-        type: 'textinput',
-        id: 'mac',
-        label: 'MAC ADDRESS',
-        width: 6,
-        regex: this.REGEX_SOMETHING,  // Regex for general validation
-      },
-      {
-        type: 'textinput',
-        id: 'code',
-        label: 'Keycode',
-        width: 6,
-        regex: this.REGEX_SOMETHING,  // Regex for general validation
-      },
-      {
-        type: 'textinput',
-        id: 'wol_ip',
-        label: 'Wake-On-LAN IP',
-        width: 6,
-        default: '255.255.255.255',
-        regex: this.REGEX_IP,  // Regex for IP validation
-      },
-    ];
-  },
-};
+			},
+			{
+				type: 'textinput',
+				id: 'host',
+				label: 'Target IP',
+				width: 6,
+				regex: this.REGEX_IP, // Regex for IP validation
+			},
+			{
+				type: 'textinput',
+				id: 'mac',
+				label: 'MAC ADDRESS',
+				width: 6,
+				regex: this.REGEX_SOMETHING, // Regex for general validation
+			},
+			{
+				type: 'textinput',
+				id: 'code',
+				label: 'Keycode',
+				width: 6,
+				regex: this.REGEX_SOMETHING, // Regex for general validation
+			},
+			{
+				type: 'textinput',
+				id: 'wol_ip',
+				label: 'Wake-On-LAN IP',
+				width: 6,
+				default: '255.255.255.255',
+				regex: this.REGEX_IP, // Regex for IP validation
+			},
+		]
+	},
+}

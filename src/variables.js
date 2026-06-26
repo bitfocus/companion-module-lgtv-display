@@ -1,18 +1,18 @@
 module.exports = {
 	initVariables: function () {
-		let self = this;
+		let self = this
 		let variables = []
 
-		self.setVariableDefinitions(variables);
-		self.checkVariables();
+		self.setVariableDefinitions(variables)
+		self.checkVariables()
 	},
 
 	checkVariables: function () {
-		let self = this;
+		let self = this
 
 		//set variables
-		let variableObj = {};
+		let variableObj = {}
 
-		self.setVariableValues(variableObj);
-	}
+		self.setVariableValues(variableObj)
+	},
 }

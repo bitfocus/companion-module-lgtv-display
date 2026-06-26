@@ -2,9 +2,9 @@ const { combineRgb } = require('@companion-module/base')
 
 module.exports = {
 	initPresets: function () {
-		let self = this;
+		let self = this
 		let presets = {
-			'powerOn': {
+			powerOn: {
 				category: 'Basics',
 				name: 'Power on',
 				type: 'button',
@@ -17,14 +17,12 @@ module.exports = {
 				},
 				steps: [
 					{
-						down: [
-							{ actionId: 'powerOn', options: [] }
-						],
-						up: []
-					}
-				]
+						down: [{ actionId: 'powerOn', options: [] }],
+						up: [],
+					},
+				],
 			},
-			'powerOff': {
+			powerOff: {
 				category: 'Basics',
 				name: 'Power off',
 				type: 'button',
@@ -37,14 +35,12 @@ module.exports = {
 				},
 				steps: [
 					{
-						down: [
-							{ actionId: 'powerOff', options: [] }
-						],
-						up: []
-					}
-				]
+						down: [{ actionId: 'powerOff', options: [] }],
+						up: [],
+					},
+				],
 			},
-			'mute': {
+			mute: {
 				category: 'Basics',
 				name: 'Mute',
 				type: 'button',
@@ -58,16 +54,12 @@ module.exports = {
 				},
 				steps: [
 					{
-						down: [
-							{ actionId: 'setVolumeMute', options: { "mute": true }}
-						],
-						up: [
-							{ actionId: 'setVolumeMute', options: { "mute": false }}
-						]
-					}
-				]
+						down: [{ actionId: 'setVolumeMute', options: { mute: true } }],
+						up: [{ actionId: 'setVolumeMute', options: { mute: false } }],
+					},
+				],
 			},
-			'screenOff': {
+			screenOff: {
 				category: 'Basics',
 				name: 'Blank Screen',
 				type: 'button',
@@ -81,16 +73,14 @@ module.exports = {
 				},
 				steps: [
 					{
-						down: [
-							{ actionId: 'setEnergySaving', options: { 'level': 'screenOff'} }
-						],
-						up: []
-					}
-				]
-			}
+						down: [{ actionId: 'setEnergySaving', options: { level: 'screenOff' } }],
+						up: [],
+					},
+				],
+			},
 		}
 
-		self.inputNames.forEach(input => {
+		self.inputNames.forEach((input) => {
 			presets[input.id] = {
 				category: 'Basics',
 				name: input.label,
@@ -104,11 +94,9 @@ module.exports = {
 				},
 				steps: [
 					{
-						down: [
-							{ actionId: 'setInput', options: {'input': input.id} }
-						]
-					}
-				]
+						down: [{ actionId: 'setInput', options: { input: input.id } }],
+					},
+				],
 			}
 		})
 
@@ -118,6 +106,6 @@ module.exports = {
 		const backgroundColorGreen = combineRgb(0, 255, 0) // Green
 		const backgroundColorOrange = combineRgb(255, 102, 0) // Orange
 
-		self.setPresetDefinitions(presets);
-	}
-}	
+		self.setPresetDefinitions(presets)
+	},
+}
