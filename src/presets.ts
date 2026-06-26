@@ -20,6 +20,7 @@ import {
 const WHITE = combineRgb(255, 255, 255)
 const BLACK = combineRgb(0, 0, 0)
 const GREEN = combineRgb(0, 153, 0)
+const RED = combineRgb(153, 0, 0)
 
 // Style applied (via a feedback) when a button represents the TV's current state.
 const ACTIVE_STYLE = { color: WHITE, bgcolor: GREEN }
@@ -48,8 +49,29 @@ function makeButton(
 	}
 }
 
+// Build a non-interactive button that just displays a label plus a variable value.
+function makeStatus(label: string, title: string, variableId: string): CompanionButtonPresetDefinition {
+	return {
+		type: 'button',
+		category: 'Status',
+		name: title,
+		style: {
+			text: `${label}\n$(${variableId})`,
+			size: 'auto',
+			color: WHITE,
+			bgcolor: BLACK,
+			show_topbar: false,
+		},
+		steps: [],
+		feedbacks: [],
+	}
+}
+
 export function UpdatePresets(self: ModuleInstance): void {
 	const presets: CompanionPresetDefinitions = {}
+
+	// The connection label prefixes references to this module's own variables.
+	const v = (id: string): string => `${self.label}:${id}`
 
 	// --- Power ---
 	presets['power_on'] = makeButton('Power', 'Power On', 'Power\nOn', { actionId: 'powerOn', options: {} }, [
@@ -68,9 +90,23 @@ export function UpdatePresets(self: ModuleInstance): void {
 		actionId: 'sendKey',
 		options: { key: Keys.volumeDown },
 	})
-	presets['mute'] = makeButton('Volume', 'Mute', 'Mute', { actionId: 'setVolumeMute', options: { mute: 'toggle' } }, [
-		{ feedbackId: 'muteState', options: { muted: 'true' }, style: ACTIVE_STYLE },
-	])
+	// Default state is unmuted (green); the muteState feedback flips it to red "Muted".
+	presets['mute'] = {
+		type: 'button',
+		category: 'Volume',
+		name: 'Mute',
+		style: {
+			text: 'Unmuted',
+			size: 'auto',
+			color: WHITE,
+			bgcolor: GREEN,
+			show_topbar: false,
+		},
+		steps: [{ down: [{ actionId: 'setVolumeMute', options: { mute: 'toggle' } }], up: [] }],
+		feedbacks: [
+			{ feedbackId: 'muteState', options: { muted: 'true' }, style: { text: 'Muted', color: WHITE, bgcolor: RED } },
+		],
+	}
 
 	// --- Navigation (remote keys) ---
 	const navKeys: { name: string; text: string; key: Keys }[] = [
@@ -140,6 +176,18 @@ export function UpdatePresets(self: ModuleInstance): void {
 			options: { level },
 		})
 	}
+
+	// --- Status --- (read-only displays of the polled variables)
+	presets['status_power'] = makeStatus('Power', 'Power State', v('power_state'))
+	presets['status_volume'] = makeStatus('Volume', 'Volume', v('volume'))
+	presets['status_muted'] = makeStatus('Muted', 'Mute State', v('muted'))
+	presets['status_ip_control'] = makeStatus('IP Ctrl', 'IP Control Enabled', v('ip_control_enabled'))
+	presets['status_current_app'] = makeStatus('App', 'Current App', v('current_app'))
+	presets['status_current_input'] = makeStatus('Input', 'Current Input', v('current_input'))
+	presets['status_current_app_id'] = makeStatus('App ID', 'Current App/Input ID', v('current_app_id'))
+	presets['status_signal'] = makeStatus('Signal', 'Input Signal', v('signal'))
+	presets['status_hdcp_version'] = makeStatus('HDCP Ver', 'HDCP Version', v('hdcp_version'))
+	presets['status_hdcp_status'] = makeStatus('HDCP', 'HDCP Status', v('hdcp_status'))
 
 	self.setPresetDefinitions(presets)
 }
