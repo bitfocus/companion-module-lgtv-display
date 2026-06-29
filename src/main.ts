@@ -5,7 +5,6 @@ import {
 	type DropdownChoice,
 	type SomeCompanionConfigField,
 } from '@companion-module/base'
-import { LGTV, EnergySavingLevels, Keys, PowerStates, DefaultSettings } from 'lgtv-ip-control'
 import { GetConfigFields, type ModuleConfig } from './config.js'
 import { UpgradeScripts } from './upgrades.js'
 import { UpdateActions } from './actions.js'
@@ -13,8 +12,10 @@ import { UpdateFeedbacks } from './feedbacks.js'
 import { UpdateVariableDefinitions, UpdateVariableValues } from './variables.js'
 import { UpdatePresets } from './presets.js'
 
-// Snapshot of the TV state that feedbacks and variables read from. Kept up to
-// date by the poll loop (updateFeedbackState).
+import { LGTV, EnergySavingLevels, Keys, PowerStates, DefaultSettings } from 'lgtv-ip-control'
+
+import PQueue from 'p-queue'
+
 export interface FeedbackState {
 	powerState: PowerStates
 	currentApp: string
@@ -59,6 +60,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	private feedbackPollInFlight = false
 	// Failed connects in a row, so the "TV may be off" notice logs only once.
 	private connectFailures = 0
+	private commandQueue = new PQueue({ concurrency: 1 })
 
 	constructor(internal: unknown) {
 		super(internal)
@@ -88,6 +90,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			this.reconnectTimer = null
 		}
 		this.stopFeedbackPolling()
+		this.commandQueue.clear()
 		if (this.lgtv) {
 			this.lgtv.disconnect()
 		}
@@ -133,6 +136,8 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			this.reconnectTimer = null
 		}
 		this.stopFeedbackPolling()
+		// Drop any commands still queued against the socket we're about to replace.
+		this.commandQueue.clear()
 		if (this.lgtv !== undefined) {
 			this.lgtv.disconnect()
 			delete this.lgtv
@@ -211,6 +216,12 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		this.checkVariables()
 	}
 
+	// Run a TV command (or a read-then-write sequence) with exclusive access to the
+	// socket, so it never interleaves with the poll loop or another action.
+	async runExclusive<T>(task: () => Promise<T>): Promise<T> {
+		return this.commandQueue.add(task)
+	}
+
 	startFeedbackPolling(): void {
 		this.stopFeedbackPolling()
 
@@ -240,8 +251,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	}
 
 	async updateFeedbackState(): Promise<void> {
-		// A single TCP socket serves all commands with no internal queue, so two
-		// overlapping polls would interleave their reads. Skip if one is running.
+		// Skip if a poll is already running so we don't pile up redundant reads.
 		if (this.feedbackPollInFlight) {
 			return
 		}
@@ -258,50 +268,56 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				return
 			}
 
+			const lgtv = this.lgtv
 			const nextState: FeedbackState = { ...this.feedbackState }
 
-			// getCurrentAppDetails runs the same CURRENT_APP command as getCurrentApp but
-			// also returns signal/HDCP info, so we get those for no extra round trip.
-			try {
-				const details = await this.lgtv.getCurrentAppDetails()
-				if (details === null) {
-					nextState.currentApp = ''
-					nextState.powerState = PowerStates.off
-					nextState.signal = undefined
-					nextState.hdcpVersion = ''
-					nextState.hdcpStatus = ''
-				} else {
-					nextState.currentApp = details.app ?? ''
-					nextState.powerState = PowerStates.on
-					nextState.signal = details.signal
-					nextState.hdcpVersion = details.hdcpVersion ?? ''
-					nextState.hdcpStatus = details.hdcpStatus ?? ''
+			// Read everything in one exclusive turn so the four commands stay together
+			// on the socket instead of interleaving with an action's command. On a
+			// transient read error we keep the previous value rather than blanking it,
+			// which avoids the brief "all variables go empty" blip; a real disconnect
+			// is handled by the connected check above.
+			await this.runExclusive(async () => {
+				// getCurrentAppDetails runs the same CURRENT_APP command as getCurrentApp
+				// but also returns signal/HDCP info, so we get those for no extra round trip.
+				try {
+					const details = await lgtv.getCurrentAppDetails()
+					if (details === null) {
+						nextState.currentApp = ''
+						nextState.powerState = PowerStates.off
+						nextState.signal = undefined
+						nextState.hdcpVersion = ''
+						nextState.hdcpStatus = ''
+					} else {
+						nextState.currentApp = details.app ?? ''
+						nextState.powerState = PowerStates.on
+						nextState.signal = details.signal
+						nextState.hdcpVersion = details.hdcpVersion ?? ''
+						nextState.hdcpStatus = details.hdcpStatus ?? ''
+					}
+				} catch {
+					// keep previous app/power/signal/HDCP values
 				}
-			} catch {
-				nextState.currentApp = ''
-				nextState.powerState = PowerStates.unknown
-				nextState.signal = undefined
-				nextState.hdcpVersion = ''
-				nextState.hdcpStatus = ''
-			}
 
-			try {
-				nextState.currentVolume = await this.lgtv.getCurrentVolume()
-			} catch {
-				nextState.currentVolume = null
-			}
+				try {
+					nextState.currentVolume = await lgtv.getCurrentVolume()
+				} catch {
+					// keep previous volume
+				}
 
-			try {
-				nextState.isMuted = await this.lgtv.getMuteState()
-			} catch {
-				nextState.isMuted = false
-			}
+				try {
+					nextState.isMuted = await lgtv.getMuteState()
+				} catch {
+					// keep previous mute state
+				}
 
-			try {
-				nextState.ipControlEnabled = await this.lgtv.getIpControlState()
-			} catch {
-				nextState.ipControlEnabled = false
-			}
+				// getIpControlState resolves true or throws; a throw means "not enabled",
+				// so false here is the intended reading, not a transient failure.
+				try {
+					nextState.ipControlEnabled = await lgtv.getIpControlState()
+				} catch {
+					nextState.ipControlEnabled = false
+				}
+			})
 
 			this.feedbackState = nextState
 			this.checkFeedbacks()

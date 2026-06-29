@@ -16,8 +16,9 @@ export function UpdateActions(self: ModuleInstance): void {
 			name: 'Power On',
 			options: [],
 			callback: async () => {
-				if (self.lgtv) {
-					self.lgtv.powerOn()
+				const lgtv = self.lgtv
+				if (lgtv) {
+					lgtv.powerOn()
 					self.log('debug', 'Power on: WoL sent')
 					void self.updateFeedbackState()
 				}
@@ -28,8 +29,11 @@ export function UpdateActions(self: ModuleInstance): void {
 			name: 'Power Off',
 			options: [],
 			callback: async () => {
-				if (self.lgtv) {
-					await self.lgtv.powerOff()
+				const lgtv = self.lgtv
+				if (lgtv) {
+					await self.runExclusive(async () => {
+						await lgtv.powerOff()
+					})
 					self.log('debug', 'Power off')
 					void self.updateFeedbackState()
 				}
@@ -52,20 +56,24 @@ export function UpdateActions(self: ModuleInstance): void {
 				},
 			],
 			callback: async (action) => {
-				if (self.lgtv) {
-					let isMuted: boolean
-					switch (action.options.mute) {
-						case 'mute':
-							isMuted = true
-							break
-						case 'unmute':
-							isMuted = false
-							break
-						default:
-							isMuted = !(await self.lgtv.getMuteState())
-							break
-					}
-					await self.lgtv.setVolumeMute(isMuted)
+				const lgtv = self.lgtv
+				if (lgtv) {
+					const isMuted = await self.runExclusive(async () => {
+						let muted: boolean
+						switch (action.options.mute) {
+							case 'mute':
+								muted = true
+								break
+							case 'unmute':
+								muted = false
+								break
+							default:
+								muted = !(await lgtv.getMuteState())
+								break
+						}
+						await lgtv.setVolumeMute(muted)
+						return muted
+					})
 					self.log('debug', isMuted ? 'Mute' : 'Unmute')
 					void self.updateFeedbackState()
 				}
@@ -84,8 +92,11 @@ export function UpdateActions(self: ModuleInstance): void {
 				},
 			],
 			callback: async (action) => {
-				if (self.lgtv) {
-					await self.lgtv.setInput(action.options.input as Inputs)
+				const lgtv = self.lgtv
+				if (lgtv) {
+					await self.runExclusive(async () => {
+						await lgtv.setInput(action.options.input as Inputs)
+					})
 					self.log('debug', `Input set to ${String(action.options.input)}`)
 					void self.updateFeedbackState()
 				}
@@ -104,9 +115,12 @@ export function UpdateActions(self: ModuleInstance): void {
 				},
 			],
 			callback: async (action) => {
-				if (self.lgtv) {
+				const lgtv = self.lgtv
+				if (lgtv) {
 					const level = action.options.level as keyof typeof EnergySavingLevels
-					await self.lgtv.setEnergySaving(EnergySavingLevels[level])
+					await self.runExclusive(async () => {
+						await lgtv.setEnergySaving(EnergySavingLevels[level])
+					})
 					self.log('debug', `Energy Saving set to ${String(action.options.level)}`)
 					void self.updateFeedbackState()
 				}
@@ -125,8 +139,11 @@ export function UpdateActions(self: ModuleInstance): void {
 				},
 			],
 			callback: async (action) => {
-				if (self.lgtv) {
-					await self.lgtv.sendKey(action.options.key as Keys)
+				const lgtv = self.lgtv
+				if (lgtv) {
+					await self.runExclusive(async () => {
+						await lgtv.sendKey(action.options.key as Keys)
+					})
 					self.log('debug', `Key ${String(action.options.key)} sent to TV`)
 					void self.updateFeedbackState()
 				}
@@ -146,8 +163,11 @@ export function UpdateActions(self: ModuleInstance): void {
 				},
 			],
 			callback: async (action) => {
-				if (self.lgtv) {
-					await self.lgtv.setVolume(Number(action.options.vol))
+				const lgtv = self.lgtv
+				if (lgtv) {
+					await self.runExclusive(async () => {
+						await lgtv.setVolume(Number(action.options.vol))
+					})
 					self.log('debug', `Volume set to ${String(action.options.vol)}`)
 					void self.updateFeedbackState()
 				}
@@ -173,7 +193,8 @@ export function UpdateActions(self: ModuleInstance): void {
 				},
 			],
 			callback: async (action) => {
-				if (self.lgtv) {
+				const lgtv = self.lgtv
+				if (lgtv) {
 					const appId =
 						action.options.app === CUSTOM_ID
 							? String(action.options.customAppId ?? '').trim()
@@ -182,7 +203,9 @@ export function UpdateActions(self: ModuleInstance): void {
 						self.log('warn', 'Launch App: no app selected')
 						return
 					}
-					await self.lgtv.launchApp(appId)
+					await self.runExclusive(async () => {
+						await lgtv.launchApp(appId)
+					})
 					self.log('debug', `Launched app ${appId}`)
 					void self.updateFeedbackState()
 				}
@@ -201,8 +224,11 @@ export function UpdateActions(self: ModuleInstance): void {
 				},
 			],
 			callback: async (action) => {
-				if (self.lgtv) {
-					await self.lgtv.setPictureMode(action.options.mode as PictureModes)
+				const lgtv = self.lgtv
+				if (lgtv) {
+					await self.runExclusive(async () => {
+						await lgtv.setPictureMode(action.options.mode as PictureModes)
+					})
 					self.log('debug', `Picture mode set to ${String(action.options.mode)}`)
 					void self.updateFeedbackState()
 				}
@@ -221,8 +247,11 @@ export function UpdateActions(self: ModuleInstance): void {
 				},
 			],
 			callback: async (action) => {
-				if (self.lgtv) {
-					await self.lgtv.setScreenMute(action.options.mode as ScreenMuteModes)
+				const lgtv = self.lgtv
+				if (lgtv) {
+					await self.runExclusive(async () => {
+						await lgtv.setScreenMute(action.options.mode as ScreenMuteModes)
+					})
 					self.log('debug', `Screen mute set to ${String(action.options.mode)}`)
 					void self.updateFeedbackState()
 				}
