@@ -5,12 +5,20 @@ This is module allows network control for most LG TVs manufactured since 2018.
 ### Configuration
 
 - Open the "All Settings" menu on the TV.
-- Using the remote arrows, navigate the focus to "Connection" but do not enter it. For some TVs, this may say "Network" instead.
-- Quickly, press 82888 using the remote numeric buttons.
-- Note the MAC and IP addresses for client configuration. The MAC address is required to remotely power on the TV.
-- Select and enable "Network IP Control".
-- For TVs that require encryption, there is a "Generate Keycode" option. Click it and note the 8 characters code displayed for client configuration. This keycode is required for all commands except power on. A new keycode can be generated at any time.
-- To allow the TV to be powered on remotely, enable "Wake On LAN".
+- The IP control settings live in one of two places, depending on the TV's webOS version:
+  - **Newer TVs (webOS 6 and later):** All Settings > Support > IP Control Settings. On some
+    models this is under General > Devices, or Support > Additional Settings.
+  - **Older TVs (2018-2021):** open All Settings, move the focus onto "Connection" (called
+    "Network" on some models) _without_ entering it, then quickly press 82888 on the remote
+    number pad to reveal the hidden menu.
+- Note the MAC and IP addresses shown for client configuration. The MAC address is required to
+  remotely power on the TV.
+- Enable "Network IP Control".
+- For TVs that require encryption, click "Generate Keycode" and note the 8 character code
+  displayed. This keycode is required for all commands except power on. A new keycode can be
+  generated at any time.
+- To allow the TV to be powered on remotely, enable "Wake On LAN" (on newer TVs this may be in
+  the same IP Control Settings screen, or under General > Devices > TV Management > Mobile TV On).
 
 ### Actions
 

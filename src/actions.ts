@@ -16,12 +16,8 @@ export function UpdateActions(self: ModuleInstance): void {
 			name: 'Power On',
 			options: [],
 			callback: async () => {
-				const lgtv = self.lgtv
-				if (lgtv) {
-					lgtv.powerOn()
-					self.log('debug', 'Power on: WoL sent')
-					void self.updateFeedbackState()
-				}
+				self.sendWakeOnLan()
+				void self.updateFeedbackState()
 			},
 		},
 
