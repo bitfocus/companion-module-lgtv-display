@@ -50,6 +50,8 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			type: 'textinput',
 			id: 'wol_ip',
 			label: 'Wake-On-LAN IP',
+			tooltip:
+				"Broadcast address the magic packet is sent to. Prefer the TV subnet's directed broadcast (e.g. 192.168.1.255); 255.255.255.255 only reaches whichever interface the OS picks, which often isn't the TV's.",
 			width: 6,
 			default: '255.255.255.255',
 			regex: Regex.IP, // Regex for IP validation

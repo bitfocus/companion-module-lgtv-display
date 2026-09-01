@@ -16,6 +16,8 @@ import { LGTV, EnergySavingLevels, Keys, PowerStates, DefaultSettings } from 'lg
 
 import PQueue from 'p-queue'
 
+import { createSocket } from 'node:dgram'
+
 export interface FeedbackState {
 	powerState: PowerStates
 	currentApp: string
@@ -220,6 +222,44 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	// socket, so it never interleaves with the poll loop or another action.
 	async runExclusive<T>(task: () => Promise<T>): Promise<T> {
 		return this.commandQueue.add(task)
+	}
+
+	// The library's powerOn() swallows every send error and can send before the
+	// socket has SO_BROADCAST set, so WoL failures look like nothing happened.
+	// Send the magic packet ourselves instead, and log what actually happened.
+	sendWakeOnLan(): void {
+		const mac = this.config?.mac?.trim()
+		if (!mac || !/^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/.test(mac)) {
+			this.log('error', `Power on: cannot send Wake-On-LAN, MAC address is missing or invalid ('${mac ?? ''}')`)
+			return
+		}
+
+		const address = this.config?.wol_ip?.trim() || '255.255.255.255'
+		const port = 9
+
+		const macBytes = Buffer.from(mac.split(':').map((block) => parseInt(block, 16)))
+		const magicPacket = Buffer.alloc(6 + 16 * 6, 0xff)
+		for (let i = 0; i < 16; i++) {
+			macBytes.copy(magicPacket, 6 + i * 6)
+		}
+
+		const socket = createSocket('udp4')
+		socket.on('error', (error) => {
+			this.log('error', `Power on: Wake-On-LAN socket error: ${errorMessage(error)}`)
+			socket.close()
+		})
+		// Bind explicitly so SO_BROADCAST is set before the packet goes out.
+		socket.bind(() => {
+			socket.setBroadcast(true)
+			socket.send(magicPacket, port, address, (error) => {
+				if (error) {
+					this.log('error', `Power on: Wake-On-LAN to ${address}:${port} failed: ${errorMessage(error)}`)
+				} else {
+					this.log('debug', `Power on: Wake-On-LAN sent to ${address}:${port} for ${mac}`)
+				}
+				socket.close()
+			})
+		})
 	}
 
 	startFeedbackPolling(): void {
