@@ -1,6 +1,6 @@
 {
 	"name": "lgtv-display",
-	"version": "2.1.0-beta.1",
+	"version": "2.1.0-beta.2",
 	"type": "module",
 	"main": "dist/main.js",
 	"scripts": {
