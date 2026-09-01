@@ -20,10 +20,14 @@ import {
 const WHITE = combineRgb(255, 255, 255)
 const BLACK = combineRgb(0, 0, 0)
 const GREEN = combineRgb(0, 153, 0)
+const GREY = combineRgb(51, 51, 51)
 const RED = combineRgb(153, 0, 0)
 
 // Style applied (via a feedback) when a button represents the TV's current state.
 const ACTIVE_STYLE = { color: WHITE, bgcolor: GREEN }
+
+// One text size for every preset, so a page of them reads as a set.
+const TEXT_SIZE = 12
 
 // Build a button preset with the shared base style so they are all uniform.
 function makeButton(
@@ -39,7 +43,7 @@ function makeButton(
 		name,
 		style: {
 			text,
-			size: 'auto',
+			size: TEXT_SIZE,
 			color: WHITE,
 			bgcolor: BLACK,
 			show_topbar: false,
@@ -50,16 +54,18 @@ function makeButton(
 }
 
 // Build a non-interactive button that just displays a label plus a variable value.
+// A blank line and the grey background separate the label from the live value and
+// mark the button as a read-only status rather than something to press.
 function makeStatus(label: string, title: string, variableId: string): CompanionButtonPresetDefinition {
 	return {
 		type: 'button',
 		category: 'Status',
 		name: title,
 		style: {
-			text: `${label}\n$(${variableId})`,
-			size: 'auto',
+			text: `${label}\n \n$(${variableId})`,
+			size: TEXT_SIZE,
 			color: WHITE,
-			bgcolor: BLACK,
+			bgcolor: GREY,
 			show_topbar: false,
 		},
 		steps: [],
@@ -97,7 +103,7 @@ export function UpdatePresets(self: ModuleInstance): void {
 		name: 'Mute',
 		style: {
 			text: 'Unmuted',
-			size: 'auto',
+			size: TEXT_SIZE,
 			color: WHITE,
 			bgcolor: GREEN,
 			show_topbar: false,
