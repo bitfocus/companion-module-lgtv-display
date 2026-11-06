@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Optional "Second MAC Address" config field. Power On wakes every known MAC.
+- On connect the module reads the TV's Wi-Fi and wired MACs (`GET_MACADDRESS`), exposes them
+  as `mac_wifi` / `mac_wired`, and logs a warning when neither matches the configured MAC. The
+  service menu often shows the wired MAC even when the TV is on Wi-Fi, so Wake-on-LAN went to
+  the wrong address.
+- `connected` variable.
+- `last_error` variable; a failed command logs a warning with the TV's reply (e.g.
+  `response not 'OK': NG`) instead of failing silently.
+
+### Fixed
+
+- Stale state when a TV drops off the network (common on Wi-Fi in standby): the socket stayed
+  open, every read timed out and the last values (e.g. power "on") were kept forever. Two
+  failed power reads in a row now close the connection, reset state to unknown and start the
+  reconnect loop.
+- Reconnect loop could stall: a disconnect while a read was in flight left that read pending
+  forever (the library drops the socket's listeners), blocking the command queue. Queued tasks
+  now time out after 25 s, the queue is replaced on disconnect, results from superseded
+  connect attempts are ignored, and a watchdog restarts a stalled reconnect loop or drops a
+  connection whose polls stop succeeding.
+- Power On sends a short Wake-on-LAN burst (5 rounds, 0.5 s apart, ports 9 and 7, to the
+  configured broadcast, 255.255.255.255 and the TV's IP) instead of one packet, and retries
+  the connection every 3 s for 2 minutes afterwards.
+- Slow off feedback: after the TV acknowledges Power Off it shows as off immediately, and a
+  poll whose power read gets no answer skips its other reads, so a TV that went away is
+  detected in about 10 s instead of about 40 s.
+
 ## [2.1.0] - 2026-06-26
 
 ### Added

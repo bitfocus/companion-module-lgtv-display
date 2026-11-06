@@ -31,7 +31,7 @@ export function UpdateActions(self: ModuleInstance): void {
 						await lgtv.powerOff()
 					})
 					self.log('debug', 'Power off')
-					void self.updateFeedbackState()
+					self.markPoweredOff()
 				}
 			},
 		},
