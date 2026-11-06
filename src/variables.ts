@@ -15,6 +15,9 @@ export function UpdateVariableDefinitions(self: ModuleInstance): void {
 		{ variableId: 'signal', name: 'Input signal present (true/false)' },
 		{ variableId: 'hdcp_version', name: 'HDCP version' },
 		{ variableId: 'hdcp_status', name: 'HDCP status' },
+		{ variableId: 'connected', name: 'Connected to the TV (true/false)' },
+		{ variableId: 'mac_wifi', name: 'Wi-Fi MAC reported by the TV' },
+		{ variableId: 'mac_wired', name: 'Wired MAC reported by the TV' },
 	])
 
 	UpdateVariableValues(self)
@@ -50,6 +53,9 @@ export function UpdateVariableValues(self: ModuleInstance): void {
 		signal: typeof state.signal === 'boolean' ? state.signal : '',
 		hdcp_version: state.hdcpVersion,
 		hdcp_status: state.hdcpStatus,
+		connected: self.isConnected(),
+		mac_wifi: self.detectedMacs.wifi,
+		mac_wired: self.detectedMacs.wired,
 	}
 
 	self.setVariableValues(values)

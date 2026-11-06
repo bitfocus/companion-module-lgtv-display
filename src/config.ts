@@ -3,6 +3,7 @@ import { Regex, type SomeCompanionConfigField } from '@companion-module/base'
 export interface ModuleConfig {
 	host: string
 	mac: string
+	mac2?: string
 	code: string
 	wol_ip: string
 	poll_interval: number
@@ -39,6 +40,15 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'MAC Address',
 			width: 6,
 			regex: Regex.MAC_ADDRESS,
+		},
+		{
+			type: 'textinput',
+			id: 'mac2',
+			label: 'Second MAC Address (optional)',
+			tooltip:
+				'Power On also wakes this MAC. Most LG TVs have separate wired and Wi-Fi MACs, and the hidden menu usually shows the wired one even when the TV is on Wi-Fi. Once connected, the module reads both MACs from the TV (variables mac_wifi / mac_wired) and logs a warning if neither one is configured.',
+			width: 6,
+			default: '',
 		},
 		{
 			type: 'textinput',
