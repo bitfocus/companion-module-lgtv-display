@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   service menu often shows the wired MAC even when the TV is on Wi-Fi, so Wake-on-LAN went to
   the wrong address.
 - `connected` variable.
+- `last_error` variable; a failed command logs a warning with the TV's reply (e.g.
+  `response not 'OK': NG`) instead of failing silently.
 
 ### Fixed
 
@@ -30,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Power On sends a short Wake-on-LAN burst (5 rounds, 0.5 s apart, ports 9 and 7, to the
   configured broadcast, 255.255.255.255 and the TV's IP) instead of one packet, and retries
   the connection every 3 s for 2 minutes afterwards.
+- Slow off feedback: after the TV acknowledges Power Off it shows as off immediately, and a
+  poll whose power read gets no answer skips its other reads, so a TV that went away is
+  detected in about 10 s instead of about 40 s.
 
 ## [2.1.0] - 2026-06-26
 

@@ -18,6 +18,7 @@ export function UpdateVariableDefinitions(self: ModuleInstance): void {
 		{ variableId: 'connected', name: 'Connected to the TV (true/false)' },
 		{ variableId: 'mac_wifi', name: 'Wi-Fi MAC reported by the TV' },
 		{ variableId: 'mac_wired', name: 'Wired MAC reported by the TV' },
+		{ variableId: 'last_error', name: 'Last command error (time and message)' },
 	])
 
 	UpdateVariableValues(self)
@@ -56,6 +57,7 @@ export function UpdateVariableValues(self: ModuleInstance): void {
 		connected: self.isConnected(),
 		mac_wifi: self.detectedMacs.wifi,
 		mac_wired: self.detectedMacs.wired,
+		last_error: self.lastError,
 	}
 
 	self.setVariableValues(values)
