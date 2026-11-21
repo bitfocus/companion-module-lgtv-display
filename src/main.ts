@@ -88,8 +88,9 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	private feedbackPollInFlight = false
 	// Failed connects in a row, so the "TV may be off" notice logs only once.
 	private connectFailures = 0
-	private commandQueue = new PQueue({ concurrency: 1, timeout: QUEUE_TASK_TIMEOUT_MS })
+	private commandQueue = this.newCommandQueue()
 	private failedPolls = 0
+	private connectionConfirmed = false
 	private fastReconnectUntil = 0
 
 	constructor(internal: unknown) {
@@ -168,8 +169,11 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			this.reconnectTimer = null
 		}
 		this.stopFeedbackPolling()
-		// Drop any commands still queued against the socket we're about to replace.
+		// Drop any commands still queued against the socket we're about to replace. A task
+		// already running may be stranded by the disconnect, so start a fresh queue rather
+		// than waiting for it to time out.
 		this.commandQueue.clear()
+		this.commandQueue = this.newCommandQueue()
 		if (this.lgtv !== undefined) {
 			this.lgtv.disconnect()
 			delete this.lgtv
@@ -195,12 +199,16 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				lgtv
 					.connect()
 					.then(() => {
-						if (lgtv !== this.lgtv) return
-						this.connectFailures = 0
+						if (lgtv !== this.lgtv) {
+							lgtv.disconnect()
+							return
+						}
 						this.failedPolls = 0
 						this.fastReconnectUntil = 0
-						this.log('info', `Connected to ${this.config.host}`)
-						this.updateStatus(InstanceStatus.Ok)
+						// The TCP connect alone doesn't prove the TV answers (e.g. a missing keycode
+						// on an encrypted TV), so report Connected only after the first good poll.
+						this.connectionConfirmed = false
+						this.log('debug', `Socket open to ${this.config.host}`)
 						void this.readMacAddresses()
 						this.startFeedbackPolling()
 					})
@@ -307,6 +315,10 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
 	// Run a TV command (or a read-then-write sequence) with exclusive access to the
 	// socket, so it never interleaves with the poll loop or another action.
+	private newCommandQueue(): PQueue {
+		return new PQueue({ concurrency: 1, timeout: QUEUE_TASK_TIMEOUT_MS })
+	}
+
 	async runExclusive<T>(task: () => Promise<T>): Promise<T> {
 		return this.commandQueue.add(task)
 	}
@@ -508,6 +520,12 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				}
 			} else {
 				this.failedPolls = 0
+				if (!this.connectionConfirmed) {
+					this.connectionConfirmed = true
+					this.connectFailures = 0
+					this.log('info', `Connected to ${this.config.host}`)
+					this.updateStatus(InstanceStatus.Ok)
+				}
 			}
 
 			this.feedbackState = nextState
