@@ -54,6 +54,11 @@ function normalizeMac(value: string | undefined | null): string {
 	return match ? match[0].replace(/-/g, ':').toUpperCase() : ''
 }
 
+// The keycode is optional: TVs without encryption connect in clear text (null).
+function normalizeKeycode(value: string | undefined | null): string | null {
+	return (value ?? '').trim().toUpperCase() || null
+}
+
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error)
 }
@@ -176,10 +181,15 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			this.DefaultSettings.networkWolAddress = '255.255.255.255' // Default value if invalid
 		}
 
-		if (this.config.host && this.config.mac && this.config.code) {
+		if (this.config.host && this.config.mac) {
 			this.log('debug', `Connecting to ${this.config.host}`)
 			try {
-				this.lgtv = new LGTV(this.config.host, this.config.mac, this.config.code, this.DefaultSettings)
+				this.lgtv = new LGTV(
+					this.config.host,
+					this.config.mac,
+					normalizeKeycode(this.config.code),
+					this.DefaultSettings,
+				)
 				this.lgtv
 					.connect()
 					.then(() => {
@@ -212,9 +222,13 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		this.resetFeedbackState()
 
 		if (this.connectFailures === 0) {
+			// Without a keycode the TV is contacted in clear text, which encrypted TVs refuse.
+			const keycodeHint = normalizeKeycode(this.config.code)
+				? ''
+				: ' If this TV requires encryption, enter its Keycode in the module settings.'
 			this.log(
 				'info',
-				`Not connected to ${this.config.host}. The TV may be powered off — retrying every 30s. (${errorMessage(error)})`,
+				`Not connected to ${this.config.host}. The TV may be powered off — retrying every 30s.${keycodeHint} (${errorMessage(error)})`,
 			)
 		} else {
 			this.log('debug', `Still not connected to ${this.config.host}: ${errorMessage(error)}`)
