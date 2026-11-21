@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Power On sends Wake-on-LAN three times, 0.5s apart, then retries the
   connection every 3s for 2 minutes while the TV boots.
 - Allow config to be saved without a keycode, for TVs that don't require one.
+- A TV that is off no longer shows the connection as an error. Once the TV has
+  answered with the current IP address and keycode, an unreachable TV is shown as
+  OK with "TV off or unreachable". A connection that has never worked is still
+  shown as an error, with a hint to check the settings.
+- The connection is only shown as connected once the TV answers a poll, not as
+  soon as the socket opens.
 
 ### Fixed
 

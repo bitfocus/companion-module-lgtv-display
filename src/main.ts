@@ -178,7 +178,6 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			this.lgtv.disconnect()
 			delete this.lgtv
 		}
-		this.updateStatus(InstanceStatus.Connecting)
 		this.DefaultSettings = { ...DefaultSettings }
 		if (this.config.wol_ip) {
 			this.DefaultSettings.networkWolAddress = this.config.wol_ip
@@ -227,27 +226,50 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		}
 	}
 
-	// Treat a lost/failed connection as an off TV: show "Disconnected", log once, and
-	// keep retrying quietly so we reconnect automatically when the TV returns.
+	// The TV can't be told apart from a wrong IP when it doesn't answer, so judge by
+	// whether it has ever answered with this host and keycode.
+	private get verifiedConnection(): string {
+		return `${this.config.host}|${normalizeKeycode(this.config.code) ?? ''}`
+	}
+
+	private get hasWorkedWithConfig(): boolean {
+		return this.config.verified_connection === this.verifiedConnection
+	}
+
+	// A lost/failed connection with a config that has worked is a TV that's off: stay Ok
+	// and retry quietly. One that has never worked is shown as an error, since the
+	// settings are the likely cause.
 	private onConnectionLost(error: unknown): void {
 		this.stopFeedbackPolling()
 		this.resetFeedbackState()
 		this.lgtv?.disconnect()
 
+		const worked = this.hasWorkedWithConfig
 		if (this.connectFailures === 0) {
-			const keycodeHint = normalizeKeycode(this.config.code)
-				? ''
-				: ' If this TV requires encryption, enter its Keycode in the module settings.'
-			this.log(
-				'info',
-				`Not connected to ${this.config.host}. The TV may be powered off — retrying every 30s.${keycodeHint} (${errorMessage(error)})`,
-			)
+			if (worked) {
+				this.log(
+					'info',
+					`${this.config.host} is not answering. The TV is probably off — retrying every 30s. (${errorMessage(error)})`,
+				)
+			} else {
+				const keycodeHint = normalizeKeycode(this.config.code)
+					? ''
+					: ' If this TV requires encryption, enter its Keycode.'
+				this.log(
+					'warn',
+					`Could not connect to ${this.config.host} — retrying every 30s. If the TV is on, check its IP address and that Network IP Control is enabled.${keycodeHint} (${errorMessage(error)})`,
+				)
+			}
 		} else {
 			this.log('debug', `Still not connected to ${this.config.host}: ${errorMessage(error)}`)
 		}
 		this.connectFailures++
 
-		this.updateStatus(InstanceStatus.Disconnected, 'Not connected — the TV may be powered off')
+		if (worked) {
+			this.updateStatus(InstanceStatus.Ok, 'TV off or unreachable')
+		} else {
+			this.updateStatus(InstanceStatus.Disconnected, 'Not connected — check the IP address and keycode')
+		}
 
 		// Retry every 30s (every 3s for a while after Power On); guard against
 		// scheduling more than one timer.
@@ -525,6 +547,10 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 					this.connectFailures = 0
 					this.log('info', `Connected to ${this.config.host}`)
 					this.updateStatus(InstanceStatus.Ok)
+					if (!this.hasWorkedWithConfig) {
+						this.config = { ...this.config, verified_connection: this.verifiedConnection }
+						this.saveConfig(this.config)
+					}
 				}
 			}
 

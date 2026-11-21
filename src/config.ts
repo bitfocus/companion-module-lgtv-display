@@ -10,6 +10,9 @@ export interface ModuleConfig {
 	// on connect so Power On can also wake them after a restart.
 	detected_mac_wifi?: string
 	detected_mac_wired?: string
+	// Not shown in the UI: the host and keycode the TV last answered on, so after a
+	// restart an unreachable TV can be shown as "off" rather than as a config error.
+	verified_connection?: string
 }
 
 export function GetConfigFields(): SomeCompanionConfigField[] {
