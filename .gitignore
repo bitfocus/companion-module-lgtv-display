@@ -3,5 +3,6 @@ package-lock.json
 /pkg
 /*.tgz
 DEBUG-*
-/.yarn
+/.yarn/*
+!/.yarn/patches
 /dist

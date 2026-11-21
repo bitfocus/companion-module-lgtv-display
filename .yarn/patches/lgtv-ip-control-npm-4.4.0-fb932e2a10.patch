@@ -1,0 +1,126 @@
+diff --git a/dist/classes/TinySocket.cjs b/dist/classes/TinySocket.cjs
+index d1bb4908026958077a3ef5d29ae7d8f926f1abb5..1df3025e6e412499c9cf723114e2a504404ebcc6 100644
+--- a/dist/classes/TinySocket.cjs
++++ b/dist/classes/TinySocket.cjs
+@@ -13,6 +13,10 @@ const MacAddressBlocksCount = 6;
+ const WolMacAddressCount = 16;
+ const WolSyncByte = 255;
+ const WolSyncCount = 6;
++// Keep an error listener on every socket: lgtv-ip-control only listens while a command
++// runs, so an error on an idle socket (a TV that left the network) crashes the process.
++const noopError = () => {};
++function newClient() { const s = new net.Socket(); s.on("error", noopError); return s; }
+ function assertSettings(settings) {
+   assert(typeof settings === "object" && settings !== null, "settings must be an object");
+   const { networkPort, networkTimeout, networkWolAddress, networkWolPort } = settings;
+@@ -32,7 +36,7 @@ class TinySocket {
+     this.host = host;
+     this.macAddress = macAddress;
+     this.settings = settings;
+-    _TinySocket_client.set(this, new net.Socket());
++    _TinySocket_client.set(this, newClient());
+     _TinySocket_connected.set(this, false);
+     assertSettings(settings);
+     assert(macAddress === null || MacAddressMatcher.test(macAddress), "invalid mac address");
+@@ -51,7 +55,7 @@ class TinySocket {
+         if (destroyClientOnError) {
+           tslib.__classPrivateFieldSet(this, _TinySocket_connected, false, "f");
+           tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").destroy();
+-          tslib.__classPrivateFieldSet(this, _TinySocket_client, new net.Socket(), "f");
++          tslib.__classPrivateFieldSet(this, _TinySocket_client, newClient(), "f");
+         }
+         reject(error);
+       };
+@@ -78,8 +82,9 @@ class TinySocket {
+         let retries = 0;
+         const connect = (error) => {
+           tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").removeAllListeners();
++          tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").on("error", noopError);
+           tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").destroy();
+-          tslib.__classPrivateFieldSet(this, _TinySocket_client, new net.Socket(), "f");
++          tslib.__classPrivateFieldSet(this, _TinySocket_client, newClient(), "f");
+           if (retries >= maxRetries) {
+             const maxRetriesError = new MaxRetriesError(`maximum retries of ${retries} reached`);
+             maxRetriesError.cause = error;
+@@ -95,6 +100,7 @@ class TinySocket {
+         };
+         const connected = () => {
+           tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").removeAllListeners();
++          tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").on("error", noopError);
+           tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").setTimeout(this.settings.networkTimeout);
+           tslib.__classPrivateFieldSet(this, _TinySocket_connected, true, "f");
+           resolve(void 0);
+@@ -139,8 +145,9 @@ class TinySocket {
+     }
+     tslib.__classPrivateFieldSet(this, _TinySocket_connected, false, "f");
+     tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").removeAllListeners();
++    tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").on("error", noopError);
+     tslib.__classPrivateFieldGet(this, _TinySocket_client, "f").end();
+-    tslib.__classPrivateFieldSet(this, _TinySocket_client, new net.Socket(), "f");
++    tslib.__classPrivateFieldSet(this, _TinySocket_client, newClient(), "f");
+   }
+   wakeOnLan() {
+     if (!this.macAddress) {
+diff --git a/dist/classes/TinySocket.js b/dist/classes/TinySocket.js
+index 848bbdf0f886e99f9d4d069fcbcdda08254dd91d..07264ca09aa94d60f91fcbe16059bf4e3a9a6857 100644
+--- a/dist/classes/TinySocket.js
++++ b/dist/classes/TinySocket.js
+@@ -11,6 +11,10 @@ const MacAddressBlocksCount = 6;
+ const WolMacAddressCount = 16;
+ const WolSyncByte = 255;
+ const WolSyncCount = 6;
++// Keep an error listener on every socket: lgtv-ip-control only listens while a command
++// runs, so an error on an idle socket (a TV that left the network) crashes the process.
++const noopError = () => {};
++function newClient() { const s = new Socket(); s.on("error", noopError); return s; }
+ function assertSettings(settings) {
+   assert(typeof settings === "object" && settings !== null, "settings must be an object");
+   const { networkPort, networkTimeout, networkWolAddress, networkWolPort } = settings;
+@@ -30,7 +34,7 @@ class TinySocket {
+     this.host = host;
+     this.macAddress = macAddress;
+     this.settings = settings;
+-    _TinySocket_client.set(this, new Socket());
++    _TinySocket_client.set(this, newClient());
+     _TinySocket_connected.set(this, false);
+     assertSettings(settings);
+     assert(macAddress === null || MacAddressMatcher.test(macAddress), "invalid mac address");
+@@ -49,7 +53,7 @@ class TinySocket {
+         if (destroyClientOnError) {
+           __classPrivateFieldSet(this, _TinySocket_connected, false, "f");
+           __classPrivateFieldGet(this, _TinySocket_client, "f").destroy();
+-          __classPrivateFieldSet(this, _TinySocket_client, new Socket(), "f");
++          __classPrivateFieldSet(this, _TinySocket_client, newClient(), "f");
+         }
+         reject(error);
+       };
+@@ -76,8 +80,9 @@ class TinySocket {
+         let retries = 0;
+         const connect = (error) => {
+           __classPrivateFieldGet(this, _TinySocket_client, "f").removeAllListeners();
++          __classPrivateFieldGet(this, _TinySocket_client, "f").on("error", noopError);
+           __classPrivateFieldGet(this, _TinySocket_client, "f").destroy();
+-          __classPrivateFieldSet(this, _TinySocket_client, new Socket(), "f");
++          __classPrivateFieldSet(this, _TinySocket_client, newClient(), "f");
+           if (retries >= maxRetries) {
+             const maxRetriesError = new MaxRetriesError(`maximum retries of ${retries} reached`);
+             maxRetriesError.cause = error;
+@@ -93,6 +98,7 @@ class TinySocket {
+         };
+         const connected = () => {
+           __classPrivateFieldGet(this, _TinySocket_client, "f").removeAllListeners();
++          __classPrivateFieldGet(this, _TinySocket_client, "f").on("error", noopError);
+           __classPrivateFieldGet(this, _TinySocket_client, "f").setTimeout(this.settings.networkTimeout);
+           __classPrivateFieldSet(this, _TinySocket_connected, true, "f");
+           resolve(void 0);
+@@ -137,8 +143,9 @@ class TinySocket {
+     }
+     __classPrivateFieldSet(this, _TinySocket_connected, false, "f");
+     __classPrivateFieldGet(this, _TinySocket_client, "f").removeAllListeners();
++    __classPrivateFieldGet(this, _TinySocket_client, "f").on("error", noopError);
+     __classPrivateFieldGet(this, _TinySocket_client, "f").end();
+-    __classPrivateFieldSet(this, _TinySocket_client, new Socket(), "f");
++    __classPrivateFieldSet(this, _TinySocket_client, newClient(), "f");
+   }
+   wakeOnLan() {
+     if (!this.macAddress) {

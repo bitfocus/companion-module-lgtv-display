@@ -54,7 +54,7 @@ function normalizeMac(value: string | undefined | null): string {
 	return match ? match[0].replace(/-/g, ':').toUpperCase() : ''
 }
 
-// The keycode is optional: TVs without encryption connect in clear text (null).
+// Blank means no encryption; the library then uses clear text.
 function normalizeKeycode(value: string | undefined | null): string | null {
 	return (value ?? '').trim().toUpperCase() || null
 }
@@ -124,6 +124,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		this.commandQueue.clear()
 		if (this.lgtv) {
 			this.lgtv.disconnect()
+			delete this.lgtv
 		}
 		this.log('debug', `Destroying instance ${this.id}`)
 	}
@@ -184,15 +185,17 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		if (this.config.host && this.config.mac) {
 			this.log('debug', `Connecting to ${this.config.host}`)
 			try {
-				this.lgtv = new LGTV(
+				const lgtv = new LGTV(
 					this.config.host,
 					this.config.mac,
 					normalizeKeycode(this.config.code),
 					this.DefaultSettings,
 				)
-				this.lgtv
+				this.lgtv = lgtv
+				lgtv
 					.connect()
 					.then(() => {
+						if (lgtv !== this.lgtv) return
 						this.connectFailures = 0
 						this.failedPolls = 0
 						this.fastReconnectUntil = 0
@@ -202,6 +205,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 						this.startFeedbackPolling()
 					})
 					.catch((error: unknown) => {
+						if (lgtv !== this.lgtv) return
 						// A failed connect usually just means the TV is powered off.
 						this.onConnectionLost(error)
 					})
@@ -220,9 +224,9 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	private onConnectionLost(error: unknown): void {
 		this.stopFeedbackPolling()
 		this.resetFeedbackState()
+		this.lgtv?.disconnect()
 
 		if (this.connectFailures === 0) {
-			// Without a keycode the TV is contacted in clear text, which encrypted TVs refuse.
 			const keycodeHint = normalizeKeycode(this.config.code)
 				? ''
 				: ' If this TV requires encryption, enter its Keycode in the module settings.'

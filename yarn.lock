@@ -1632,7 +1632,7 @@ __metadata:
     "@companion-module/tools": "npm:^2.9.1"
     "@types/node": "npm:^26.6.6"
     eslint: "npm:^9.39.5"
-    lgtv-ip-control: "npm:^4.4.0"
+    lgtv-ip-control: "patch:lgtv-ip-control@npm%3A4.4.0#~/.yarn/patches/lgtv-ip-control-npm-4.4.0-fb932e2a10.patch"
     p-queue: "npm:^9.3.5"
     prettier: "npm:^3.10.1"
     rimraf: "npm:^6.1.4"
@@ -1641,12 +1641,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"lgtv-ip-control@npm:^4.4.0":
+"lgtv-ip-control@npm:4.4.0":
   version: 4.4.0
   resolution: "lgtv-ip-control@npm:4.4.0"
   dependencies:
     tslib: "npm:^2.7.0"
   checksum: 10c0/47eae90938e4dda14990a4bb9743a8de236fb3d4e3426a6fa6feac4ce418abca6d79b5f63f128fdff71f9d1b3fc68cc89b776c45da789b68a7135e7b04d2fc62
+  languageName: node
+  linkType: hard
+
+"lgtv-ip-control@patch:lgtv-ip-control@npm%3A4.4.0#~/.yarn/patches/lgtv-ip-control-npm-4.4.0-fb932e2a10.patch":
+  version: 4.4.0
+  resolution: "lgtv-ip-control@patch:lgtv-ip-control@npm%3A4.4.0#~/.yarn/patches/lgtv-ip-control-npm-4.4.0-fb932e2a10.patch::version=4.4.0&hash=25f2a9"
+  dependencies:
+    tslib: "npm:^2.7.0"
+  checksum: 10c0/064effd836ca1123fd0eff1b2a5dbd979adc16f6bb19015f966638f65aad9aa9cad9b1886c257d37f5ffde4d7634c0808ce0c670dadec74852179eda69568e78
   languageName: node
   linkType: hard
 

@@ -22,7 +22,7 @@
 	},
 	"dependencies": {
 		"@companion-module/base": "~1.15.1",
-		"lgtv-ip-control": "^4.4.0",
+		"lgtv-ip-control": "patch:lgtv-ip-control@npm%3A4.4.0#~/.yarn/patches/lgtv-ip-control-npm-4.4.0-fb932e2a10.patch",
 		"p-queue": "^9.3.5"
 	},
 	"devDependencies": {
