@@ -6,6 +6,10 @@ export interface ModuleConfig {
 	code: string
 	wol_ip: string
 	poll_interval: number
+	// Not shown in the UI: the MACs the TV reports about itself, saved by the module
+	// on connect so Power On can also wake them after a restart.
+	detected_mac_wifi?: string
+	detected_mac_wired?: string
 }
 
 export function GetConfigFields(): SomeCompanionConfigField[] {
