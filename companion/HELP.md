@@ -15,8 +15,8 @@ This is module allows network control for most LG TVs manufactured since 2018.
   remotely power on the TV.
 - Enable "Network IP Control".
 - For TVs that require encryption, click "Generate Keycode" and note the 8 character code
-  displayed. This keycode is required for all commands except power on. A new keycode can be
-  generated at any time.
+  displayed. Enter it as the Keycode; leave the Keycode blank if the TV has no such option. A
+  new keycode can be generated at any time.
 - To allow the TV to be powered on remotely, enable "Wake On LAN" (on newer TVs this may be in
   the same IP Control Settings screen, or under General > Devices > TV Management > Mobile TV On).
 

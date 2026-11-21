@@ -5,6 +5,33 @@ All notable changes to this module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-11-21
+
+### Changed
+
+- On connect, the module reads the TV's Wi-Fi and wired MAC addresses and
+  includes them in Wake-on-LAN, so Power On still works when the configured MAC
+  is the inactive interface.
+- Power On sends Wake-on-LAN three times, 0.5s apart, then retries the
+  connection every 3s for 2 minutes while the TV boots.
+- Allow config to be saved without a keycode, for TVs that don't require one.
+- A TV that is off no longer shows the connection as an error. Once the TV has
+  answered with the current IP address and keycode, an unreachable TV is shown as
+  OK with "TV off or unreachable". A connection that has never worked is still
+  shown as an error, with a hint to check the settings.
+- The connection is only shown as connected once the TV answers a poll, not as
+  soon as the socket opens.
+
+### Fixed
+
+- A TV that leaves the network (for example a Wi-Fi connection in standby) no longer
+  keeps its last known state. The connection is dropped after two polls in a
+  row with no answer.
+- A power read that gets no answer skips the rest of that poll.
+- A socket read stranded by a disconnect no longer blocks later commands.
+- The module no longer crashes with `read ETIMEDOUT` after a Wi-Fi
+  TV is turned off. The connection to the TV is now closed properly when the TV stops answering.
+
 ## [2.1.0] - 2026-11-16
 
 ### Added

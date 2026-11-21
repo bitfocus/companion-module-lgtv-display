@@ -2,7 +2,7 @@
 	"id": "lgtv-display",
 	"name": "lgtv-display",
 	"shortname": "LGTV",
-	"description": "A module for compatible LG Displays",
+	"description": "Control compatible LG Displays and TVs.",
 	"version": "0.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-lgtv-display.git",
@@ -11,6 +11,10 @@
 		{
 			"name": "Jeffrey Davidsz",
 			"email": "jeffrey.davidsz@vicreo.eu"
+		},
+		{
+			"name": "Bryce Seifert",
+			"email": "bryce@bitfocus.io"
 		}
 	],
 	"legacyIds": [],
@@ -21,6 +25,6 @@
 		"entrypoint": "../dist/main.js"
 	},
 	"manufacturer": "LG",
-	"products": ["Display"],
-	"keywords": ["tv", "consumer", "OLED"]
+	"products": ["Display", "TV"],
+	"keywords": ["tv", "lgtv", "consumer", "OLED"]
 }

@@ -54,6 +54,11 @@ function normalizeMac(value: string | undefined | null): string {
 	return match ? match[0].replace(/-/g, ':').toUpperCase() : ''
 }
 
+// Blank means no encryption; the library then uses clear text.
+function normalizeKeycode(value: string | undefined | null): string | null {
+	return (value ?? '').trim().toUpperCase() || null
+}
+
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error)
 }
@@ -83,8 +88,9 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	private feedbackPollInFlight = false
 	// Failed connects in a row, so the "TV may be off" notice logs only once.
 	private connectFailures = 0
-	private commandQueue = new PQueue({ concurrency: 1, timeout: QUEUE_TASK_TIMEOUT_MS })
+	private commandQueue = this.newCommandQueue()
 	private failedPolls = 0
+	private connectionConfirmed = false
 	private fastReconnectUntil = 0
 
 	constructor(internal: unknown) {
@@ -119,6 +125,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		this.commandQueue.clear()
 		if (this.lgtv) {
 			this.lgtv.disconnect()
+			delete this.lgtv
 		}
 		this.log('debug', `Destroying instance ${this.id}`)
 	}
@@ -162,13 +169,15 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			this.reconnectTimer = null
 		}
 		this.stopFeedbackPolling()
-		// Drop any commands still queued against the socket we're about to replace.
+		// Drop any commands still queued against the socket we're about to replace. A task
+		// already running may be stranded by the disconnect, so start a fresh queue rather
+		// than waiting for it to time out.
 		this.commandQueue.clear()
+		this.commandQueue = this.newCommandQueue()
 		if (this.lgtv !== undefined) {
 			this.lgtv.disconnect()
 			delete this.lgtv
 		}
-		this.updateStatus(InstanceStatus.Connecting)
 		this.DefaultSettings = { ...DefaultSettings }
 		if (this.config.wol_ip) {
 			this.DefaultSettings.networkWolAddress = this.config.wol_ip
@@ -176,22 +185,34 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			this.DefaultSettings.networkWolAddress = '255.255.255.255' // Default value if invalid
 		}
 
-		if (this.config.host && this.config.mac && this.config.code) {
+		if (this.config.host && this.config.mac) {
 			this.log('debug', `Connecting to ${this.config.host}`)
 			try {
-				this.lgtv = new LGTV(this.config.host, this.config.mac, this.config.code, this.DefaultSettings)
-				this.lgtv
+				const lgtv = new LGTV(
+					this.config.host,
+					this.config.mac,
+					normalizeKeycode(this.config.code),
+					this.DefaultSettings,
+				)
+				this.lgtv = lgtv
+				lgtv
 					.connect()
 					.then(() => {
-						this.connectFailures = 0
+						if (lgtv !== this.lgtv) {
+							lgtv.disconnect()
+							return
+						}
 						this.failedPolls = 0
 						this.fastReconnectUntil = 0
-						this.log('info', `Connected to ${this.config.host}`)
-						this.updateStatus(InstanceStatus.Ok)
+						// The TCP connect alone doesn't prove the TV answers (e.g. a missing keycode
+						// on an encrypted TV), so report Connected only after the first good poll.
+						this.connectionConfirmed = false
+						this.log('debug', `Socket open to ${this.config.host}`)
 						void this.readMacAddresses()
 						this.startFeedbackPolling()
 					})
 					.catch((error: unknown) => {
+						if (lgtv !== this.lgtv) return
 						// A failed connect usually just means the TV is powered off.
 						this.onConnectionLost(error)
 					})
@@ -205,23 +226,50 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		}
 	}
 
-	// Treat a lost/failed connection as an off TV: show "Disconnected", log once, and
-	// keep retrying quietly so we reconnect automatically when the TV returns.
+	// The TV can't be told apart from a wrong IP when it doesn't answer, so judge by
+	// whether it has ever answered with this host and keycode.
+	private get verifiedConnection(): string {
+		return `${this.config.host}|${normalizeKeycode(this.config.code) ?? ''}`
+	}
+
+	private get hasWorkedWithConfig(): boolean {
+		return this.config.verified_connection === this.verifiedConnection
+	}
+
+	// A lost/failed connection with a config that has worked is a TV that's off: stay Ok
+	// and retry quietly. One that has never worked is shown as an error, since the
+	// settings are the likely cause.
 	private onConnectionLost(error: unknown): void {
 		this.stopFeedbackPolling()
 		this.resetFeedbackState()
+		this.lgtv?.disconnect()
 
+		const worked = this.hasWorkedWithConfig
 		if (this.connectFailures === 0) {
-			this.log(
-				'info',
-				`Not connected to ${this.config.host}. The TV may be powered off — retrying every 30s. (${errorMessage(error)})`,
-			)
+			if (worked) {
+				this.log(
+					'info',
+					`${this.config.host} is not answering. The TV is probably off — retrying every 30s. (${errorMessage(error)})`,
+				)
+			} else {
+				const keycodeHint = normalizeKeycode(this.config.code)
+					? ''
+					: ' If this TV requires encryption, enter its Keycode.'
+				this.log(
+					'warn',
+					`Could not connect to ${this.config.host} — retrying every 30s. If the TV is on, check its IP address and that Network IP Control is enabled.${keycodeHint} (${errorMessage(error)})`,
+				)
+			}
 		} else {
 			this.log('debug', `Still not connected to ${this.config.host}: ${errorMessage(error)}`)
 		}
 		this.connectFailures++
 
-		this.updateStatus(InstanceStatus.Disconnected, 'Not connected — the TV may be powered off')
+		if (worked) {
+			this.updateStatus(InstanceStatus.Ok, 'TV off or unreachable')
+		} else {
+			this.updateStatus(InstanceStatus.Disconnected, 'Not connected — check the IP address and keycode')
+		}
 
 		// Retry every 30s (every 3s for a while after Power On); guard against
 		// scheduling more than one timer.
@@ -289,6 +337,10 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
 	// Run a TV command (or a read-then-write sequence) with exclusive access to the
 	// socket, so it never interleaves with the poll loop or another action.
+	private newCommandQueue(): PQueue {
+		return new PQueue({ concurrency: 1, timeout: QUEUE_TASK_TIMEOUT_MS })
+	}
+
 	async runExclusive<T>(task: () => Promise<T>): Promise<T> {
 		return this.commandQueue.add(task)
 	}
@@ -490,6 +542,16 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				}
 			} else {
 				this.failedPolls = 0
+				if (!this.connectionConfirmed) {
+					this.connectionConfirmed = true
+					this.connectFailures = 0
+					this.log('info', `Connected to ${this.config.host}`)
+					this.updateStatus(InstanceStatus.Ok)
+					if (!this.hasWorkedWithConfig) {
+						this.config = { ...this.config, verified_connection: this.verifiedConnection }
+						this.saveConfig(this.config)
+					}
+				}
 			}
 
 			this.feedbackState = nextState

@@ -10,6 +10,9 @@ export interface ModuleConfig {
 	// on connect so Power On can also wake them after a restart.
 	detected_mac_wifi?: string
 	detected_mac_wired?: string
+	// Not shown in the UI: the host and keycode the TV last answered on, so after a
+	// restart an unreachable TV can be shown as "off" rather than as a config error.
+	verified_connection?: string
 }
 
 export function GetConfigFields(): SomeCompanionConfigField[] {
@@ -26,7 +29,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 				'   - **Older TVs (2018-2021):** move the focus onto **Connection** (**Network** on some models) without entering it, then quickly press **82888** on the remote number pad to reveal the hidden menu.',
 				'3. Note the **MAC** and **IP** addresses for client configuration. The MAC address is required to remotely power on the TV.',
 				'4. Enable **Network IP Control**.',
-				'5. For TVs that require encryption, there is a **Generate Keycode** option. Click it and note the 8 character code displayed for client configuration. This keycode is required for all commands except power on. A new keycode can be generated at any time.',
+				'5. For TVs that require encryption, there is a **Generate Keycode** option. Click it and note the 8 character code displayed for client configuration. Enter it as the Keycode; leave the Keycode blank if the TV has no such option. A new keycode can be generated at any time.',
 				'6. To allow the TV to be powered on remotely, enable **Wake On LAN** (on newer TVs this may be in the same IP Control screen, or under **General** > **Devices** > **TV Management** > **Mobile TV On**).',
 			].join('\n'),
 		},
@@ -49,7 +52,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			id: 'code',
 			label: 'Keycode',
 			width: 6,
-			regex: Regex.SOMETHING,
+			regex: '/^([A-Za-z0-9]{8})?$/',
 		},
 		{
 			type: 'textinput',
