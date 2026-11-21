@@ -12,7 +12,7 @@ import { UpdateFeedbacks } from './feedbacks.js'
 import { UpdateVariableDefinitions, UpdateVariableValues } from './variables.js'
 import { UpdatePresets } from './presets.js'
 
-import { LGTV, EnergySavingLevels, Keys, PowerStates, DefaultSettings } from 'lgtv-ip-control'
+import { LGTV, EnergySavingLevels, Keys, PowerStates, DefaultSettings, ResponseParseError } from 'lgtv-ip-control'
 
 import PQueue from 'p-queue'
 
@@ -32,6 +32,20 @@ export interface FeedbackState {
 const POLL_MIN = 250
 const POLL_MAX = 60000
 const POLL_DEFAULT = 2000
+
+// A TV that drops off the network (e.g. a Wi-Fi TV in standby) can leave the socket
+// open with every read timing out. After this many failed polls in a row the TV is
+// treated as gone, so its last known state isn't kept forever.
+const MAX_FAILED_POLLS = 2
+const RECONNECT_MS = 30000
+// After Power On, retry the connection quickly for a while so feedback catches up.
+const RECONNECT_FAST_MS = 3000
+const FAST_RECONNECT_WINDOW_MS = 120000
+// Cap every task on the socket. A disconnect can strand an in-flight read whose
+// promise never settles (lgtv-ip-control#160), which would block the queue forever.
+const QUEUE_TASK_TIMEOUT_MS = 25000
+const WOL_ROUNDS = 3
+const WOL_SPACING_MS = 500
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error)
@@ -62,7 +76,9 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	private feedbackPollInFlight = false
 	// Failed connects in a row, so the "TV may be off" notice logs only once.
 	private connectFailures = 0
-	private commandQueue = new PQueue({ concurrency: 1 })
+	private commandQueue = new PQueue({ concurrency: 1, timeout: QUEUE_TASK_TIMEOUT_MS })
+	private failedPolls = 0
+	private fastReconnectUntil = 0
 
 	constructor(internal: unknown) {
 		super(internal)
@@ -75,6 +91,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	async configUpdated(config: ModuleConfig): Promise<void> {
 		this.config = config
 		this.connectFailures = 0
+		this.failedPolls = 0
 		this.stopFeedbackPolling()
 
 		this.updateFeedbacks()
@@ -160,6 +177,8 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 					.connect()
 					.then(() => {
 						this.connectFailures = 0
+						this.failedPolls = 0
+						this.fastReconnectUntil = 0
 						this.log('info', `Connected to ${this.config.host}`)
 						this.updateStatus(InstanceStatus.Ok)
 						this.startFeedbackPolling()
@@ -196,9 +215,11 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
 		this.updateStatus(InstanceStatus.Disconnected, 'Not connected — the TV may be powered off')
 
-		// Retry every 30s; guard against scheduling more than one timer.
+		// Retry every 30s (every 3s for a while after Power On); guard against
+		// scheduling more than one timer.
 		if (!this.reconnectTimer) {
-			this.reconnectTimer = setTimeout(() => this.initConnection(), 30000)
+			const delay = Date.now() < this.fastReconnectUntil ? RECONNECT_FAST_MS : RECONNECT_MS
+			this.reconnectTimer = setTimeout(() => this.initConnection(), delay)
 		}
 	}
 
@@ -227,6 +248,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	// The library's powerOn() swallows every send error and can send before the
 	// socket has SO_BROADCAST set, so WoL failures look like nothing happened.
 	// Send the magic packet ourselves instead, and log what actually happened.
+	// A single packet is easily lost on Wi-Fi, so send a few rounds.
 	sendWakeOnLan(): void {
 		const mac = this.config?.mac?.trim()
 		if (!mac || !/^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/.test(mac)) {
@@ -244,22 +266,44 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		}
 
 		const socket = createSocket('udp4')
+		let closed = false
+		const close = (): void => {
+			if (closed) return
+			closed = true
+			socket.close()
+		}
 		socket.on('error', (error) => {
 			this.log('error', `Power on: Wake-On-LAN socket error: ${errorMessage(error)}`)
-			socket.close()
+			close()
 		})
-		// Bind explicitly so SO_BROADCAST is set before the packet goes out.
+		// Bind explicitly so SO_BROADCAST is set before the packets go out.
 		socket.bind(() => {
 			socket.setBroadcast(true)
-			socket.send(magicPacket, port, address, (error) => {
-				if (error) {
-					this.log('error', `Power on: Wake-On-LAN to ${address}:${port} failed: ${errorMessage(error)}`)
-				} else {
-					this.log('debug', `Power on: Wake-On-LAN sent to ${address}:${port} for ${mac}`)
-				}
-				socket.close()
-			})
+			const send = (round: number): void => {
+				if (closed) return
+				socket.send(magicPacket, port, address, (error) => {
+					if (error) {
+						this.log('error', `Power on: Wake-On-LAN to ${address}:${port} failed: ${errorMessage(error)}`)
+						close()
+						return
+					}
+					if (round < WOL_ROUNDS) {
+						setTimeout(() => send(round + 1), WOL_SPACING_MS)
+					} else {
+						this.log('debug', `Power on: Wake-On-LAN sent ${WOL_ROUNDS}x to ${address}:${port} for ${mac}`)
+						close()
+					}
+				})
+			}
+			send(1)
 		})
+
+		// Reconnect quickly while the TV boots.
+		this.fastReconnectUntil = Date.now() + FAST_RECONNECT_WINDOW_MS
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer)
+			this.reconnectTimer = setTimeout(() => this.initConnection(), RECONNECT_FAST_MS)
+		}
 	}
 
 	startFeedbackPolling(): void {
@@ -316,48 +360,74 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			// transient read error we keep the previous value rather than blanking it,
 			// which avoids the brief "all variables go empty" blip; a real disconnect
 			// is handled by the connected check above.
-			await this.runExclusive(async () => {
-				// getCurrentAppDetails runs the same CURRENT_APP command as getCurrentApp
-				// but also returns signal/HDCP info, so we get those for no extra round trip.
-				try {
-					const details = await lgtv.getCurrentAppDetails()
-					if (details === null) {
-						nextState.currentApp = ''
-						nextState.powerState = PowerStates.off
-						nextState.signal = undefined
-						nextState.hdcpVersion = ''
-						nextState.hdcpStatus = ''
-					} else {
-						nextState.currentApp = details.app ?? ''
-						nextState.powerState = PowerStates.on
-						nextState.signal = details.signal
-						nextState.hdcpVersion = details.hdcpVersion ?? ''
-						nextState.hdcpStatus = details.hdcpStatus ?? ''
+			let powerReadFailed = false
+			try {
+				await this.runExclusive(async () => {
+					// getCurrentAppDetails runs the same CURRENT_APP command as getCurrentApp
+					// but also returns signal/HDCP info, so we get those for no extra round trip.
+					try {
+						const details = await lgtv.getCurrentAppDetails()
+						if (details === null) {
+							nextState.currentApp = ''
+							nextState.powerState = PowerStates.off
+							nextState.signal = undefined
+							nextState.hdcpVersion = ''
+							nextState.hdcpStatus = ''
+						} else {
+							nextState.currentApp = details.app ?? ''
+							nextState.powerState = PowerStates.on
+							nextState.signal = details.signal
+							nextState.hdcpVersion = details.hdcpVersion ?? ''
+							nextState.hdcpStatus = details.hdcpStatus ?? ''
+						}
+					} catch (error) {
+						// Keep previous app/power/signal/HDCP values. A garbled reply means the
+						// TV is still there; a timeout or socket error means it may be gone,
+						// so skip the other reads and count a failed poll.
+						if (!(error instanceof ResponseParseError)) {
+							powerReadFailed = true
+							return
+						}
 					}
-				} catch {
-					// keep previous app/power/signal/HDCP values
-				}
 
-				try {
-					nextState.currentVolume = await lgtv.getCurrentVolume()
-				} catch {
-					// keep previous volume
-				}
+					try {
+						nextState.currentVolume = await lgtv.getCurrentVolume()
+					} catch {
+						// keep previous volume
+					}
 
-				try {
-					nextState.isMuted = await lgtv.getMuteState()
-				} catch {
-					// keep previous mute state
-				}
+					try {
+						nextState.isMuted = await lgtv.getMuteState()
+					} catch {
+						// keep previous mute state
+					}
 
-				// getIpControlState resolves true or throws; a throw means "not enabled",
-				// so false here is the intended reading, not a transient failure.
-				try {
-					nextState.ipControlEnabled = await lgtv.getIpControlState()
-				} catch {
-					nextState.ipControlEnabled = false
+					// getIpControlState resolves true or throws; a throw means "not enabled",
+					// so false here is the intended reading, not a transient failure.
+					try {
+						nextState.ipControlEnabled = await lgtv.getIpControlState()
+					} catch {
+						nextState.ipControlEnabled = false
+					}
+				})
+			} catch {
+				// The queued read timed out or was dropped.
+				powerReadFailed = true
+			}
+
+			// The connection was replaced while we were reading: ignore this result.
+			if (lgtv !== this.lgtv) return
+
+			if (powerReadFailed) {
+				this.failedPolls++
+				if (this.failedPolls >= MAX_FAILED_POLLS) {
+					this.failedPolls = 0
+					this.onConnectionLost(new Error(`no response to ${MAX_FAILED_POLLS} polls in a row`))
+					return
 				}
-			})
+			} else {
+				this.failedPolls = 0
+			}
 
 			this.feedbackState = nextState
 			this.checkFeedbacks()
