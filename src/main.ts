@@ -47,6 +47,13 @@ const QUEUE_TASK_TIMEOUT_MS = 25000
 const WOL_ROUNDS = 3
 const WOL_SPACING_MS = 500
 
+const MAC_RE = /([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}/
+
+function normalizeMac(value: string | undefined | null): string {
+	const match = (value ?? '').match(MAC_RE)
+	return match ? match[0].replace(/-/g, ':').toUpperCase() : ''
+}
+
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error)
 }
@@ -181,6 +188,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 						this.fastReconnectUntil = 0
 						this.log('info', `Connected to ${this.config.host}`)
 						this.updateStatus(InstanceStatus.Ok)
+						void this.readMacAddresses()
 						this.startFeedbackPolling()
 					})
 					.catch((error: unknown) => {
@@ -223,6 +231,46 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		}
 	}
 
+	// Ask the TV for its own MACs. The hidden menu often shows the wired MAC even when
+	// the TV is on Wi-Fi, and Wake-On-LAN only works on the active interface. Save what
+	// the TV reports (only when it changed) so Power On can wake it, and warn when the
+	// configured MAC is neither.
+	private async readMacAddresses(): Promise<void> {
+		const lgtv = this.lgtv
+		if (!lgtv) return
+		const reported = { wifi: '', wired: '' }
+		try {
+			await this.runExclusive(async () => {
+				for (const type of ['wifi', 'wired'] as const) {
+					try {
+						reported[type] = normalizeMac(await lgtv.getMacAddress(type))
+					} catch (error) {
+						this.log('debug', `Could not read ${type} MAC: ${errorMessage(error)}`)
+					}
+				}
+			})
+		} catch {
+			return
+		}
+		if (lgtv !== this.lgtv || (!reported.wifi && !reported.wired)) return
+
+		this.log('debug', `TV reports Wi-Fi MAC ${reported.wifi || '?'} and wired MAC ${reported.wired || '?'}`)
+		const configured = normalizeMac(this.config.mac)
+		if (configured !== reported.wifi && configured !== reported.wired) {
+			this.log(
+				'warn',
+				`Configured MAC ${configured || '(none)'} is not one of the TV's own MACs (Wi-Fi ${reported.wifi || '?'}, wired ${reported.wired || '?'}). Power On will also wake the reported MACs.`,
+			)
+		}
+		if (
+			(reported.wifi || '') !== (this.config.detected_mac_wifi ?? '') ||
+			(reported.wired || '') !== (this.config.detected_mac_wired ?? '')
+		) {
+			this.config = { ...this.config, detected_mac_wifi: reported.wifi, detected_mac_wired: reported.wired }
+			this.saveConfig(this.config)
+		}
+	}
+
 	// Clear cached TV state and refresh feedbacks/variables (used when not connected).
 	private resetFeedbackState(): void {
 		this.feedbackState = {
@@ -255,15 +303,23 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			this.log('error', `Power on: cannot send Wake-On-LAN, MAC address is missing or invalid ('${mac ?? ''}')`)
 			return
 		}
+		// Also wake the MACs the TV reported about itself, in case the configured one
+		// belongs to the inactive interface.
+		const macs = [normalizeMac(mac), this.config.detected_mac_wifi ?? '', this.config.detected_mac_wired ?? ''].filter(
+			(m, i, all) => m && all.indexOf(m) === i,
+		)
 
 		const address = this.config?.wol_ip?.trim() || '255.255.255.255'
 		const port = 9
 
-		const macBytes = Buffer.from(mac.split(':').map((block) => parseInt(block, 16)))
-		const magicPacket = Buffer.alloc(6 + 16 * 6, 0xff)
-		for (let i = 0; i < 16; i++) {
-			macBytes.copy(magicPacket, 6 + i * 6)
-		}
+		const packets = macs.map((m) => {
+			const macBytes = Buffer.from(m.split(':').map((block) => parseInt(block, 16)))
+			const magicPacket = Buffer.alloc(6 + 16 * 6, 0xff)
+			for (let i = 0; i < 16; i++) {
+				macBytes.copy(magicPacket, 6 + i * 6)
+			}
+			return magicPacket
+		})
 
 		const socket = createSocket('udp4')
 		let closed = false
@@ -281,19 +337,26 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			socket.setBroadcast(true)
 			const send = (round: number): void => {
 				if (closed) return
-				socket.send(magicPacket, port, address, (error) => {
-					if (error) {
-						this.log('error', `Power on: Wake-On-LAN to ${address}:${port} failed: ${errorMessage(error)}`)
-						close()
-						return
-					}
-					if (round < WOL_ROUNDS) {
-						setTimeout(() => send(round + 1), WOL_SPACING_MS)
-					} else {
-						this.log('debug', `Power on: Wake-On-LAN sent ${WOL_ROUNDS}x to ${address}:${port} for ${mac}`)
-						close()
-					}
-				})
+				let pending = packets.length
+				for (const packet of packets) {
+					socket.send(packet, port, address, (error) => {
+						if (error) {
+							this.log('error', `Power on: Wake-On-LAN to ${address}:${port} failed: ${errorMessage(error)}`)
+							close()
+							return
+						}
+						if (--pending > 0) return
+						if (round < WOL_ROUNDS) {
+							setTimeout(() => send(round + 1), WOL_SPACING_MS)
+						} else {
+							this.log(
+								'debug',
+								`Power on: Wake-On-LAN sent ${WOL_ROUNDS}x to ${address}:${port} for ${macs.join(', ')}`,
+							)
+							close()
+						}
+					})
+				}
 			}
 			send(1)
 		})
